@@ -1,0 +1,67 @@
+name: Update card index
+
+on:
+  # The "Update now" button in the web app triggers this through the API, and
+  # it can also be run by hand from the Actions tab.
+  workflow_dispatch:
+
+  # Keep the site fresh without anyone pressing anything. 08:00 and 20:00 UTC.
+  # GitHub runs scheduled jobs on a best-effort basis, so expect some drift.
+  schedule:
+    - cron: '0 8,20 * * *'
+
+# Only one scrape at a time. A run already in progress is left to finish rather
+# than being cancelled, since a half-finished scrape publishes nothing useful.
+concurrency:
+  group: update-index
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The parsers are the fragile part. If a site changed its markup, fail
+      # here rather than publishing a broken or empty index.
+      - name: Verify parsers against saved fixtures
+        run: npm test
+
+      # Pull down what is already published so the build can report what
+      # changed. Missing on the first run, which is fine.
+      - name: Fetch the currently published index
+        continue-on-error: true
+        run: |
+          mkdir -p dist-site
+          curl -sfL -o dist-site/index.json \
+            "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/index.json" \
+            || echo "no published index yet"
+
+      - name: Scrape and build the index
+        id: build
+        run: |
+          summary="$(npm run --silent build:index)"
+          echo "summary=${summary}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-site
+          publish_branch: gh-pages
+          # Keep a single commit on the data branch. Without this, a ~500 KB
+          # JSON committed twice a day would bloat the repository over time.
+          force_orphan: true
+          commit_message: "Index: ${{ steps.build.outputs.summary }}"

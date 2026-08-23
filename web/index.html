@@ -14,12 +14,12 @@
     <p class="sub">Search every ManaBox deck listed on the seller's Linktree.</p>
     <div class="searchbar">
       <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
-             spellcheck="false" list="suggestions" autofocus>
+             spellcheck="false" list="suggestions" disabled>
       <datalist id="suggestions"></datalist>
     </div>
     <div class="statusrow">
-      <div id="index-status" class="status">Loading index status...</div>
-      <button id="update-btn" type="button" class="btn">Update now</button>
+      <div id="index-status" class="status">Loading card index...</div>
+      <button id="update-btn" type="button" class="btn" disabled>Update now</button>
     </div>
     <div id="progress" class="progress" hidden>
       <div class="bar"><span id="bar-fill"></span></div>
@@ -31,14 +31,14 @@
 <main class="wrap">
   <div id="summary" class="summary" hidden></div>
   <div id="results"></div>
-  <div id="empty" class="empty">Type a card name to see which decks have it.</div>
+  <div id="empty" class="loading">Loading card index...</div>
 </main>
 
 <footer class="wrap">
   <span id="foot"></span>
-  <a href="/stats.html" class="footlink">stats</a>
+  <a id="repo-link" href="#" target="_blank" rel="noopener noreferrer">source</a>
 </footer>
 
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeCardName } from '../src/db/normalize.js';
+import { normalizeCardName } from '../web/normalize.js';
 
 test('lowercases and strips accents', () => {
   assert.equal(normalizeCardName('Séance Board'), 'seance board');
