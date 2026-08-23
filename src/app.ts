@@ -6,6 +6,7 @@ import { log } from './logger.js';
 import { getDb } from './db/index.js';
 import { searchCards, suggestCardNames, getStats } from './db/repo.js';
 import { groupByDeck } from './api/search.js';
+import { logSearch, logDeckClick, getMetrics, visitorHash } from './db/metrics.js';
 import { runRefresh, getRefreshStatus, isRefreshRunning } from './jobs/refresh.js';
 
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../public');
@@ -45,6 +46,28 @@ export function createApp(deps: Partial<AppDeps> = {}): Express {
   };
   const app = express();
   app.use(express.json());
+  // Behind Fly/Render the client address arrives in X-Forwarded-For. It is only
+  // ever hashed, never stored, but it has to be read correctly to be useful.
+  app.set('trust proxy', true);
+
+  /** Per-day pseudonym for the caller. See db/metrics.ts for what this is not. */
+  const who = (req: import('express').Request) => {
+    try {
+      return visitorHash(req.ip, req.get('user-agent'));
+    } catch {
+      return null; // metrics must never break a request
+    }
+  };
+
+  /**
+   * Gate for surfaces that are not for the public: the update trigger and the
+   * stats page. Open when no token is configured, which is the local default.
+   */
+  const authorised = (req: import('express').Request) => {
+    if (!config.refreshToken) return true;
+    const supplied = req.get('x-refresh-token') ?? String(req.query['token'] ?? '');
+    return supplied === config.refreshToken;
+  };
 
   app.get('/api/search', (req, res) => {
     const q = String(req.query['q'] ?? '').trim();
@@ -57,13 +80,42 @@ export function createApp(deps: Partial<AppDeps> = {}): Express {
     const hits = searchCards(q, clampLimit(req.query['limit'], 1000, 5000));
     const decks = groupByDeck(hits);
 
-    res.json({
-      query: q,
-      deckCount: decks.length,
-      hitCount: hits.length,
-      totalCopies: hits.reduce((n, h) => n + h.quantity, 0),
-      decks,
-    });
+    const totalCopies = hits.reduce((n, h) => n + h.quantity, 0);
+
+    try {
+      logSearch(q, { resultDecks: decks.length, resultEntries: hits.length, totalCopies }, who(req));
+    } catch (err) {
+      // Never let bookkeeping take down the thing people came for.
+      log.warn('failed to log search', { err: String(err) });
+    }
+
+    res.json({ query: q, deckCount: decks.length, hitCount: hits.length, totalCopies, decks });
+  });
+
+  /** Beacon fired when a visitor opens a deck on ManaBox. */
+  app.post('/api/track/click', (req, res) => {
+    const { deckId, cardName, query } = (req.body ?? {}) as Record<string, unknown>;
+    if (typeof deckId === 'string' && deckId) {
+      try {
+        logDeckClick(
+          deckId,
+          typeof cardName === 'string' ? cardName.slice(0, 200) : null,
+          typeof query === 'string' ? query.slice(0, 200) : null,
+          who(req),
+        );
+      } catch (err) {
+        log.warn('failed to log deck click', { err: String(err) });
+      }
+    }
+    res.status(204).end();
+  });
+
+  app.get('/api/metrics', (req, res) => {
+    if (!authorised(req)) {
+      return res.status(401).json({ error: 'invalid or missing token' });
+    }
+    const days = clampLimit(req.query['days'], 30, 365);
+    res.json(getMetrics(days));
   });
 
   app.get('/api/suggest', (req, res) => {
@@ -106,13 +158,8 @@ export function createApp(deps: Partial<AppDeps> = {}): Express {
    * so the client polls /api/refresh/status for progress rather than waiting.
    */
   app.post('/api/refresh', (req, res) => {
-    // When REFRESH_TOKEN is set, the update button needs it. Unset (the local
-    // default) leaves the endpoint open, which is fine on localhost.
-    if (config.refreshToken) {
-      const supplied = req.get('x-refresh-token') ?? String(req.query['token'] ?? '');
-      if (supplied !== config.refreshToken) {
-        return res.status(401).json({ started: false, reason: 'invalid or missing refresh token' });
-      }
+    if (!authorised(req)) {
+      return res.status(401).json({ started: false, reason: 'invalid or missing refresh token' });
     }
     if (isRunning()) {
       return res.status(409).json({ started: false, reason: 'a refresh is already running' });

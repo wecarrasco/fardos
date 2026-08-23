@@ -72,7 +72,9 @@ function renderDecks(data) {
     <section class="deck">
       <div class="deck-head">
         <div class="deck-title">
-          <a href="${esc(d.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(d.deckName)}</a>
+          <a href="${esc(d.deckUrl)}" target="_blank" rel="noopener noreferrer"
+             data-deck-id="${esc(d.deckId)}"
+             data-card-name="${esc(d.cards[0]?.cardName ?? '')}">${esc(d.deckName)}</a>
           ${d.category ? `<span class="chip">${esc(d.category)}</span>` : ''}
         </div>
         <div class="deck-meta">
@@ -98,6 +100,24 @@ function renderDecks(data) {
       </table>
     </section>`).join('');
 }
+
+/**
+ * Record which deck a visitor opens. Uses sendBeacon so the request survives
+ * the tab losing focus, and is entirely best-effort -- a blocked beacon must
+ * never interfere with following the link.
+ */
+resultsEl.addEventListener('click', (ev) => {
+  const link = ev.target.closest('a[data-deck-id]');
+  if (!link) return;
+  try {
+    const payload = JSON.stringify({
+      deckId: link.dataset.deckId,
+      cardName: link.dataset.cardName || null,
+      query: qInput.value.trim() || null,
+    });
+    navigator.sendBeacon('/api/track/click', new Blob([payload], { type: 'application/json' }));
+  } catch { /* best effort */ }
+});
 
 let seq = 0;
 async function search(q) {

@@ -26,6 +26,7 @@ body {
 header { border-bottom: 1px solid var(--line); background: var(--panel); padding: 22px 0 18px; }
 h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
 .sub { margin: 4px 0 14px; color: var(--muted); font-size: 14px; }
+a { color: var(--link); }
 .searchbar input {
   width: 100%; padding: 12px 14px; font-size: 16px; color: var(--text);
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
@@ -108,3 +109,6 @@ mark { background: var(--accent-dim); color: inherit; border-radius: 3px; paddin
   .bar span { transition: none; }
   .bar span.indeterminate { animation: none; width: 100%; opacity: .4; }
 }
+
+footer .footlink { color: var(--muted); margin-left: 10px; }
+footer .footlink:hover { color: var(--link); }

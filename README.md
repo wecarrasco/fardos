@@ -93,10 +93,12 @@ makes them the right tool for checking a parser after a site change.
 | `GET /api/suggest?q=sol` | Card-name suggestions for typeahead |
 | `GET /api/decks` | All active decks |
 | `GET /api/changes?limit=50` | Recent additions, removals, and content changes |
+| `GET /api/metrics?days=30` | Usage and inventory report behind `/stats` (token-gated) |
+| `POST /api/track/click` | Beacon recording that a visitor opened a deck |
 | `GET /api/stats` | Index size and last run |
 | `GET /healthz` | Liveness. Always `200` while the process serves, even with an empty index |
 | `GET /readyz` | Readiness. `200` only once there is data; `503` before the first update |
-| `POST /api/refresh` | Start an update (`202`, or `409` if one is already running) |
+| `POST /api/refresh` | Start an update (`202`, `409` if one runs, `401` without the token) |
 | `GET /api/refresh/status` | Live progress of the running update |
 
 Search is case- and accent-insensitive and matches substrings, so `seance` finds
@@ -258,6 +260,49 @@ red, so the assertions have teeth rather than merely passing.
 
 ---
 
+## Stats
+
+`/stats.html` (linked from the footer) reports what people search for and what is in
+stock. It exists mainly for one question: **what are buyers asking for that you do not
+have?** Every search that returns nothing is listed as a restock list.
+
+It covers:
+
+- **Activity** - searches, visitors, deck opens, and the share of searches that found
+  nothing, over 7/30/90/365 days
+- **Searches per day** and busiest hours
+- **Not in stock** - zero-result searches, most-asked first
+- **Top searches**, **most opened decks**, **most opened cards**
+- **Inventory** - copies, distinct cards, foil share, breakdowns by rarity, card type and
+  set, most-stocked cards. Derived from the index, so it needs no visitor activity at all
+- **Update history** and recent catalogue changes
+
+### Privacy
+
+No cookies, no IP addresses, no user agents, and no third-party services. The only
+identifier is `visitor`: a truncated SHA-256 of the address, user agent, today's date and
+a random per-install salt kept in the database. It separates visitors within a day and is
+meaningless the next, so it cannot follow anyone across days or be reversed to a person.
+Nothing is sent anywhere -- the data is in your own SQLite file.
+
+If you share the link publicly, consider a line in the footer saying searches are logged
+anonymously to guide restocking.
+
+### Keystroke collapsing
+
+Live search fires as people type, so `s`, `so`, `sol`, `sol ring` would each be a row.
+When a query from the same visitor extends or shortens the previous one within ten
+seconds, that row is rewritten instead. The log records what people meant, not how they
+typed it.
+
+### Access
+
+When `REFRESH_TOKEN` is set, `/api/metrics` and the update trigger both require it; the
+stats page prompts once and remembers it in that browser. Unset (the local default),
+both are open. Search itself is always public.
+
+---
+
 ## Deploying
 
 The app is a normal Node server with a SQLite file, so anything that runs a
@@ -266,7 +311,8 @@ container will host it. A `Dockerfile` is included, plus blueprints for two host
 ### Before you deploy: set a refresh token
 
 On a public URL, leave `POST /api/refresh` unauthenticated and a stranger can make your
-server scrape Linktree and ManaBox on demand. Set `REFRESH_TOKEN` to any random string:
+server scrape Linktree and ManaBox on demand. The same token also gates `/api/metrics`,
+so your search stats are not public either. Set it to any random string:
 
 ```bash
 openssl rand -hex 24
@@ -337,6 +383,7 @@ src/
     index.ts            connection + migration on boot
     normalize.ts        card-name folding for search
     repo.ts             upserts, change detection, search queries
+    metrics.ts          usage logging and the /stats report
   jobs/
     refresh.ts          one full refresh pass, with live progress state
   api/search.ts         groups flat hits into per-deck results

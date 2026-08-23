@@ -70,3 +70,45 @@ CREATE TABLE IF NOT EXISTS deck_changes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_deck_changes_run ON deck_changes(run_id);
+
+-- ---------------------------------------------------------------------------
+-- Usage metrics
+--
+-- Deliberately free of personal data: no IP addresses, no user agents, no
+-- cookies. `visitor` is a truncated hash of (ip + user-agent + a per-install
+-- salt + today's date), so it distinguishes people within a day and becomes
+-- meaningless the next -- enough for "how many searched today", useless for
+-- tracking anyone across time.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS app_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS search_log (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  query          TEXT NOT NULL,     -- as the visitor typed it
+  query_norm     TEXT NOT NULL,     -- folded, so variants group together
+  result_decks   INTEGER NOT NULL,
+  result_entries INTEGER NOT NULL,
+  total_copies   INTEGER NOT NULL,
+  visitor        TEXT,
+  created_at     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_log_created ON search_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_search_log_norm    ON search_log(query_norm);
+CREATE INDEX IF NOT EXISTS idx_search_log_visitor ON search_log(visitor, created_at);
+
+CREATE TABLE IF NOT EXISTS deck_click (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  deck_id    TEXT NOT NULL,
+  card_name  TEXT,                  -- the card the visitor was looking at
+  query      TEXT,                  -- what they had searched for
+  visitor    TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_click_created ON deck_click(created_at);
+CREATE INDEX IF NOT EXISTS idx_deck_click_deck    ON deck_click(deck_id);

@@ -3,7 +3,7 @@
 #   fly volumes create mtg_data --size 1
 #   fly secrets set REFRESH_TOKEN="$(openssl rand -hex 24)"
 #   fly deploy
-app = "mtg-card-search"
+app = "fardos"
 primary_region = "iad"
 
 [build]

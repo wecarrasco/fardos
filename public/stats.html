@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats - MTG Card Finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#128202;</text></svg>">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="stats.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Stats</h1>
+    <p class="sub"><a href="/">&larr; back to search</a></p>
+    <div class="statusrow">
+      <div class="status" id="range-note">Loading...</div>
+      <div>
+        <select id="range" class="btn secondary">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last year</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="content">
+  <p class="empty">Loading metrics...</p>
+</main>
+
+<script src="stats.js"></script>
+</body>
+</html>
