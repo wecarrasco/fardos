@@ -1,0 +1,35 @@
+{
+  "name": "mtg-card-search",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Search every ManaBox deck on a seller's Linktree for a given MTG card",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "scrape:linktree": "tsx src/cli/scrape-linktree.ts",
+    "scrape:deck": "tsx src/cli/scrape-deck.ts",
+    "refresh": "tsx src/cli/refresh.ts",
+    "typecheck": "tsc --noEmit",
+    "fixtures:update": "tsx scripts/update-fixtures.ts",
+    "test": "tsx --test test/*.test.ts",
+    "build": "tsc -p tsconfig.build.json && cp src/db/schema.sql dist/db/schema.sql",
+    "serve": "node dist/server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

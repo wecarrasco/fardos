@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTG Card Finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#127183;</text></svg>">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>MTG Card Finder</h1>
+    <p class="sub">Search every ManaBox deck listed on the seller's Linktree.</p>
+    <div class="searchbar">
+      <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
+             spellcheck="false" list="suggestions" autofocus>
+      <datalist id="suggestions"></datalist>
+    </div>
+    <div class="statusrow">
+      <div id="index-status" class="status">Loading index status...</div>
+      <button id="update-btn" type="button" class="btn">Update now</button>
+    </div>
+    <div id="progress" class="progress" hidden>
+      <div class="bar"><span id="bar-fill"></span></div>
+      <div id="progress-text" class="progress-text"></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="summary" class="summary" hidden></div>
+  <div id="results"></div>
+  <div id="empty" class="empty">Type a card name to see which decks have it.</div>
+</main>
+
+<footer class="wrap">
+  <span id="foot"></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

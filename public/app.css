@@ -1,0 +1,110 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1e222b;
+  --line: #2a2f3a;
+  --text: #e6e8ee;
+  --muted: #9aa2b1;
+  --accent: #f0b429;
+  --accent-dim: #7a5c14;
+  --foil: #b98cff;
+  --link: #6fb3ff;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dfe3ea;
+    --text: #1a1d23; --muted: #5c6472; --accent: #9a6b00; --accent-dim: #e8d7a8;
+    --foil: #6b3fbf; --link: #1668c9;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 16px; }
+header { border-bottom: 1px solid var(--line); background: var(--panel); padding: 22px 0 18px; }
+h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+.sub { margin: 4px 0 14px; color: var(--muted); font-size: 14px; }
+.searchbar input {
+  width: 100%; padding: 12px 14px; font-size: 16px; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+}
+.searchbar input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.status { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.dot.ok { background: #35c26a; } .dot.warn { background: var(--accent); } .dot.bad { background: #e5544b; }
+
+main { padding: 20px 0 40px; }
+.summary { margin-bottom: 14px; color: var(--muted); font-size: 14px; }
+.summary b { color: var(--text); }
+.empty { color: var(--muted); padding: 28px 0; text-align: center; }
+
+.deck {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  margin-bottom: 12px; overflow: hidden;
+}
+.deck-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.deck-title { font-weight: 650; }
+.deck-title a { color: var(--link); text-decoration: none; }
+.deck-title a:hover { text-decoration: underline; }
+.deck-meta { font-size: 12.5px; color: var(--muted); }
+.chip {
+  display: inline-block; font-size: 11.5px; padding: 2px 8px; border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--line); color: var(--muted); margin-left: 8px;
+}
+table { width: 100%; border-collapse: collapse; }
+td { padding: 8px 14px; border-top: 1px solid var(--line); vertical-align: baseline; }
+tr:first-child td { border-top: none; }
+.qty { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--accent); }
+.name { font-weight: 500; }
+.setinfo { color: var(--muted); font-size: 12.5px; }
+.foil {
+  color: var(--foil); border: 1px solid var(--foil); border-radius: 999px;
+  font-size: 10.5px; padding: 1px 6px; margin-left: 8px; font-weight: 650; letter-spacing: .04em;
+}
+footer { color: var(--muted); font-size: 12.5px; padding: 0 0 30px; }
+mark { background: var(--accent-dim); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+/* ---- Update button and refresh progress ---- */
+.statusrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 10px; flex-wrap: wrap;
+}
+.statusrow .status { margin-top: 0; }
+.btn {
+  flex: none; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  color: var(--bg); background: var(--accent); border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:disabled { cursor: default; opacity: .6; }
+.btn.secondary { color: var(--text); background: transparent; border-color: var(--line); }
+
+.progress { margin-top: 10px; }
+.bar {
+  height: 6px; border-radius: 999px; background: var(--panel-2);
+  border: 1px solid var(--line); overflow: hidden;
+}
+.bar span {
+  display: block; height: 100%; width: 0%; background: var(--accent);
+  transition: width .3s ease;
+}
+/* Before deck counts exist there is nothing to measure, so sweep instead. */
+.bar span.indeterminate {
+  width: 35%; animation: sweep 1.1s ease-in-out infinite;
+}
+@keyframes sweep {
+  0% { margin-left: -35%; } 100% { margin-left: 100%; }
+}
+.progress-text { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.progress-text.error { color: #e5544b; }
+.progress-text.done { color: #35c26a; }
+@media (prefers-reduced-motion: reduce) {
+  .bar span { transition: none; }
+  .bar span.indeterminate { animation: none; width: 100%; opacity: .4; }
+}

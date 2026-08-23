@@ -1,0 +1,31 @@
+# Render blueprint. Create a new Blueprint instance and point it at this repo.
+#
+# Note: persistent disks require a paid instance type on Render. On the free
+# plan the container's filesystem is wiped on every deploy and on wake from
+# sleep, so the index starts empty and you press "Update now" once. If that is
+# annoying, either upgrade to attach the disk below, or use Fly.io (fly.toml),
+# whose volumes are available on smaller plans.
+services:
+  - type: web
+    name: mtg-card-search
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: LINKTREE_USERNAME
+        value: ChelitoSAF
+      - key: DB_PATH
+        value: /data/mtg.db
+      - key: PORT
+        value: 3000
+      # Generated once by Render and kept secret. The web UI prompts for it the
+      # first time you press "Update now".
+      - key: REFRESH_TOKEN
+        generateValue: true
+
+    # Uncomment together with a paid plan to keep the database across deploys.
+    # disk:
+    #   name: mtg-data
+    #   mountPath: /data
+    #   sizeGB: 1
