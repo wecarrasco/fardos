@@ -140,6 +140,11 @@ previous index. Some consequences worth knowing:
 - **Restocking is not an arrival.** Going from 1 copy to 12 changes the quantity, not the
   printing, so it does not appear here.
 - **A card that leaves and returns reads as new**, which matches how a buyer would see it.
+- **A card that sells out disappears from the list**, even inside the 7-day window. The
+  index only ever describes current stock, so a card added in the morning and sold by
+  evening is simply gone — listing something unbuyable would send people to an empty deck
+  page. Selling *some* copies changes only the quantity, so the card stays listed as a
+  recent arrival with its count reduced.
 
 ### The two kinds of window
 

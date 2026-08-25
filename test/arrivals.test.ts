@@ -163,6 +163,14 @@ test('foil and non-foil of one card are separate printings', () => {
   assert.equal(r.printingCount, 2);
 });
 
+test('a sold-out arrival is not listed, since it cannot be bought', () => {
+  // The index only ever describes current stock, so a card added in the morning
+  // and sold by evening simply is not there any more.
+  const afterTheSale = index([deck('a', [card('Still Here', today)])], []);
+  const r = newArrivals(afterTheSale, { days: 7 });
+  assert.deepEqual(r.decks[0]!.cards.map((c) => c.name), ['Still Here']);
+});
+
 test('decks with nothing new are omitted entirely', () => {
   const i = index([
     deck('quiet', [card('Old', twentyDaysAgo)]),

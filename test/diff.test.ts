@@ -91,6 +91,26 @@ test('quantity changes alone are not arrivals', () => {
   assert.equal(decks[0]!.cards[0]!.firstSeen, EARLIER);
 });
 
+test('a card sold between builds leaves no trace', () => {
+  // Arrivals are derived from cards currently in the index, so a printing that
+  // sold out cannot be listed as new -- there is nothing to buy.
+  const morning = { decks: [deck('a', [card('Staple'), card('Hot', { collectorNumber: '2' })])] };
+  const evening = [deck('a', [card('Staple')])];
+
+  assert.deepEqual(stampArrivals(evening, morning, TODAY), [],
+    'nothing arrived in the evening build');
+  assert.ok(!evening[0]!.cards.some((c) => c.name === 'Hot'));
+});
+
+test('a partly sold card stays listed and keeps its arrival date', () => {
+  const morning = { decks: [deck('a', [card('Hot', { quantity: 4, firstSeen: TODAY })])] };
+  const evening = [deck('a', [card('Hot', { quantity: 1 })])];
+
+  assert.deepEqual(stampArrivals(evening, morning, TODAY), []);
+  assert.equal(evening[0]!.cards[0]!.firstSeen, TODAY, 'still a recent arrival');
+  assert.equal(evening[0]!.cards[0]!.quantity, 1, 'with the reduced count');
+});
+
 test('a card that left and came back is treated as arriving again', () => {
   const previous = { decks: [deck('a', [card('Other')])] };
   const decks = [deck('a', [card('Returned')])];
