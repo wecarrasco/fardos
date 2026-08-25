@@ -2,7 +2,8 @@
 
 Search a Magic: The Gathering card name and see **every ManaBox deck on a seller's
 Linktree that currently stocks it** — with quantity, foil status, printing, and a link
-straight to the deck page.
+straight to the deck page. A **New arrivals** tab lists what the seller has added
+recently.
 
 A static site. No server, no database. GitHub Actions scrapes the sites and publishes a
 JSON index; GitHub Pages serves it; the browser does the searching.
@@ -121,6 +122,43 @@ browser — it calls the real GitHub API either way.
 
 ---
 
+## New arrivals
+
+The site has a **New arrivals** tab listing cards that entered the catalogue recently,
+over a window you pick: since the last update, or the last 7 / 30 / 90 days. Cards inside
+the window also carry a green **NEW** badge in ordinary search results.
+
+### What counts as new
+
+A *printing* — name, set, collector number and foil finish together — that was not in the
+previous index. Some consequences worth knowing:
+
+- **A card moved between decks is not new.** Identity is catalogue-wide, so reshuffling
+  decks does not resurface cards as arrivals.
+- **A different printing of a card you already stock is new.** A second copy from another
+  set, or a foil version of a card you had in non-foil, is genuinely new stock.
+- **Restocking is not an arrival.** Going from 1 copy to 12 changes the quantity, not the
+  printing, so it does not appear here.
+- **A card that leaves and returns reads as new**, which matches how a buyer would see it.
+
+### How it survives twice-daily builds
+
+Each build stamps every card with `firstSeen`, the date its printing first appeared, and
+carries that date forward on every later build. Without this, "new" could only ever mean
+"since the previous build" — and with the workflow running twice a day, anything added in
+the morning would vanish from the list by evening.
+
+**The first build stamps nothing.** With no history there is no way to tell a genuine
+arrival from a card that has been in stock for months, and announcing the entire
+8,000-card catalogue as new would be worse than announcing none of it. Cards already in
+stock when tracking began stay undated and never appear as arrivals; the list fills in
+naturally as real changes happen.
+
+Carrying a date on every card costs about **13 KB** gzipped, because the dates repeat and
+compress well.
+
+---
+
 ## Parsing
 
 `src/scrapers/linktree.ts` reads the anchors Linktree tags with
@@ -234,9 +272,11 @@ web/                    the site; copied verbatim into the build output
   app.js                UI, index loading, the update button
   search.js             the search itself, plain ESM so Node can test it
   normalize.js          card-name folding, shared by build and browser
+  arrivals.js           the New arrivals view
   config.js             repo details for the update button
 scripts/
   build-index.ts        scrape -> index.json -> dist-site/
+  lib/diff.ts           arrival stamping and deck diffing, kept pure for tests
   update-fixtures.ts    re-download the saved test pages
 test/
   fixtures/             gzipped copies of real pages

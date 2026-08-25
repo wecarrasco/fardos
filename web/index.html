@@ -12,10 +12,31 @@
   <div class="wrap">
     <h1>MTG Card Finder</h1>
     <p class="sub">Search every ManaBox deck listed on the seller's Linktree.</p>
-    <div class="searchbar">
-      <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
-             spellcheck="false" list="suggestions" disabled>
-      <datalist id="suggestions"></datalist>
+    <div class="tabs" role="tablist">
+      <button id="tab-search" class="tab is-active" role="tab" aria-selected="true">Search</button>
+      <button id="tab-new" class="tab" role="tab" aria-selected="false">
+        New arrivals <span id="new-count" class="count" hidden></span>
+      </button>
+    </div>
+
+    <div id="pane-search">
+      <div class="searchbar">
+        <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
+               spellcheck="false" list="suggestions" disabled>
+        <datalist id="suggestions"></datalist>
+      </div>
+    </div>
+
+    <div id="pane-new" hidden>
+      <div class="windowpick">
+        <label for="window">Showing cards added</label>
+        <select id="window" class="btn secondary">
+          <option value="last">in the last update</option>
+          <option value="7" selected>in the last 7 days</option>
+          <option value="30">in the last 30 days</option>
+          <option value="90">in the last 90 days</option>
+        </select>
+      </div>
     </div>
     <div class="statusrow">
       <div id="index-status" class="status">Loading card index...</div>

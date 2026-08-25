@@ -10,12 +10,12 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync, cpSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import { scrapeLinktree } from '../src/scrapers/linktree.js';
 import { scrapeDeck, type DeckSnapshot } from '../src/scrapers/manabox.js';
 import { sleep } from '../src/scrapers/http.js';
 import { config, linktreeUrl } from '../src/config.js';
 import { log } from '../src/logger.js';
+import { diffDecks, stampArrivals, type PreviousIndex } from './lib/diff.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -24,6 +24,12 @@ const outDir = resolve(root, outFlag !== -1 ? argv[outFlag + 1]! : 'dist-site');
 
 interface IndexCard {
   name: string;
+  /**
+   * Date this printing was first seen anywhere in the catalogue, YYYY-MM-DD.
+   * Absent when it was already in stock before arrival tracking began, or when
+   * the previous index could not be read -- "unknown", never "new".
+   */
+  firstSeen?: string;
   quantity: number;
   foil: boolean;
   setName: string | null;
@@ -64,33 +70,14 @@ function toIndexDeck(snapshot: DeckSnapshot, category: string | null): IndexDeck
   };
 }
 
-/** Order-independent fingerprint of a deck's contents, for change detection. */
-function deckHash(deck: IndexDeck): string {
-  const rows = deck.cards
-    .map((c) => `${c.name}|${c.quantity}|${c.foil ? 1 : 0}|${c.setId ?? ''}|${c.collectorNumber ?? ''}`)
-    .sort();
-  return createHash('sha1').update(rows.join('\n')).digest('hex');
-}
-
-/** Compare against the previously published index, if one is present. */
-function diffAgainstPrevious(decks: IndexDeck[], previousPath: string) {
-  if (!existsSync(previousPath)) return { added: decks.length, removed: 0, changed: 0, first: true };
-
+/** Read whatever was published last time, or null on a first build. */
+function readPrevious(previousPath: string): PreviousIndex | null {
+  if (!existsSync(previousPath)) return null;
   try {
-    const prev = JSON.parse(readFileSync(previousPath, 'utf8')) as { decks?: IndexDeck[] };
-    const before = new Map((prev.decks ?? []).map((d) => [d.id, deckHash(d)]));
-    const after = new Map(decks.map((d) => [d.id, deckHash(d)]));
-
-    let added = 0, changed = 0;
-    for (const [id, hash] of after) {
-      if (!before.has(id)) added++;
-      else if (before.get(id) !== hash) changed++;
-    }
-    const removed = [...before.keys()].filter((id) => !after.has(id)).length;
-    return { added, removed, changed, first: false };
+    return JSON.parse(readFileSync(previousPath, 'utf8')) as PreviousIndex;
   } catch {
     log.warn('could not read the previous index; treating this as a first build');
-    return { added: decks.length, removed: 0, changed: 0, first: true };
+    return null;
   }
 }
 
@@ -139,12 +126,21 @@ if (entries === 0) {
 
 mkdirSync(outDir, { recursive: true });
 const previousPath = resolve(outDir, 'index.json');
-const diff = diffAgainstPrevious(decks, previousPath);
+const previous = readPrevious(previousPath);
+const diff = diffDecks(decks, previous);
+
+const generatedAt = new Date().toISOString();
+const newPrintings = stampArrivals(decks, previous, generatedAt.slice(0, 10));
 
 const index = {
-  generatedAt: new Date().toISOString(),
+  generatedAt,
+  /** Lets the site offer a "since the last update" window. */
+  previousGeneratedAt: previous?.generatedAt ?? null,
   source: linktreeUrl(),
-  stats: { decks: decks.length, entries, copies, names, skipped: gone, failed },
+  stats: {
+    decks: decks.length, entries, copies, names,
+    newPrintings, skipped: gone, failed,
+  },
   decks,
 };
 
@@ -156,7 +152,7 @@ writeFileSync(previousPath, JSON.stringify(index));
 const sizeKb = Math.round(Buffer.byteLength(JSON.stringify(index)) / 1024);
 log.info('index written', {
   out: previousPath, sizeKb,
-  decks: decks.length, entries, copies, names,
+  decks: decks.length, entries, copies, names, newPrintings,
   added: diff.added, removed: diff.removed, changed: diff.changed,
   skipped: gone, failed,
 });
@@ -168,6 +164,7 @@ const summary = diff.first
      diff.added ? `${diff.added} added` : null,
      diff.removed ? `${diff.removed} removed` : null,
      diff.changed ? `${diff.changed} changed` : null,
+     newPrintings ? `${newPrintings} new cards` : null,
      failed ? `${failed} failed` : null,
     ].filter(Boolean).join(', ');
 console.log(summary);

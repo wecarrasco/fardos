@@ -116,3 +116,29 @@ mark { background: var(--accent-dim); color: inherit; border-radius: 3px; paddin
 .token-note a { color: var(--link); }
 footer a { color: var(--muted); margin-left: 10px; }
 footer a:hover { color: var(--link); }
+
+/* ---- Tabs ---- */
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tab {
+  appearance: none; cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600;
+  padding: 7px 14px; border-radius: 8px; color: var(--muted);
+  background: transparent; border: 1px solid transparent;
+}
+.tab:hover { color: var(--text); }
+.tab.is-active {
+  color: var(--text); background: var(--panel-2); border-color: var(--line);
+}
+.tab .count {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 700;
+}
+
+.windowpick { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); }
+.windowpick select { font: inherit; padding: 6px 10px; cursor: pointer; }
+
+/* ---- New badge on a card ---- */
+.new-badge {
+  color: #35c26a; border: 1px solid #35c26a; border-radius: 999px;
+  font-size: 10.5px; padding: 1px 6px; margin-left: 8px; font-weight: 700; letter-spacing: .04em;
+}
+.arrived { color: var(--muted); font-size: 12px; }

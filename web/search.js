@@ -16,6 +16,7 @@ import { normalizeCardName } from './normalize.js';
  * @typedef {object} IndexCard
  * @property {string} name
  * @property {string} [norm] populated lazily by cardNorm()
+ * @property {string} [firstSeen] YYYY-MM-DD; absent when the arrival date is unknown
  * @property {number} quantity
  * @property {boolean} foil
  * @property {string|null} setName

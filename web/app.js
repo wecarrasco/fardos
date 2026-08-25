@@ -1,6 +1,7 @@
 import { CONFIG, repoUrl, actionsUrl } from './config.js';
 import { search, suggest } from './search.js';
 import { normalizeCardName } from './normalize.js';
+import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -56,22 +57,25 @@ const fmtDate = (iso) => {
   return `${days} days ago (${abs})`;
 };
 
-function renderResults(data) {
+/** Cards arriving on or after this date get a NEW badge in either tab. */
+let newBadgeCutoff = null;
+
+function renderResults(data, opts = {}) {
   if (!data.decks.length) {
     resultsEl.innerHTML = '';
     summaryEl.hidden = true;
     emptyEl.hidden = false;
     emptyEl.className = 'empty';
-    emptyEl.textContent = `No deck currently lists a card matching "${data.query}".`;
+    emptyEl.textContent = opts.emptyText ?? `No deck currently lists a card matching "${data.query}".`;
     return;
   }
 
   emptyEl.hidden = true;
   summaryEl.hidden = false;
-  summaryEl.innerHTML =
-    `<b>${data.totalCopies}</b> ${data.totalCopies === 1 ? 'copy' : 'copies'} ` +
-    `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'} ` +
-    `(<b>${data.hitCount}</b> matching ${data.hitCount === 1 ? 'entry' : 'entries'}).`;
+  summaryEl.innerHTML = opts.summary ??
+    (`<b>${data.totalCopies}</b> ${data.totalCopies === 1 ? 'copy' : 'copies'} ` +
+     `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'} ` +
+     `(<b>${data.hitCount}</b> matching ${data.hitCount === 1 ? 'entry' : 'entries'}).`);
 
   resultsEl.innerHTML = data.decks.map((d) => `
     <section class="deck">
@@ -81,7 +85,7 @@ function renderResults(data) {
           ${d.category ? `<span class="chip">${esc(d.category)}</span>` : ''}
         </div>
         <div class="deck-meta">
-          ${d.totalQuantity} matching ${d.totalQuantity === 1 ? 'copy' : 'copies'}
+          ${d.totalQuantity} ${opts.copiesLabel ?? 'matching'} ${d.totalQuantity === 1 ? 'copy' : 'copies'}
           &middot; deck updated ${esc(fmtDate(d.deckUpdatedAt))}
         </div>
       </div>
@@ -90,13 +94,15 @@ function renderResults(data) {
           <tr>
             <td class="qty">${c.quantity}&times;</td>
             <td>
-              <span class="name">${highlight(c.name, data.query)}</span>
+              <span class="name">${data.query ? highlight(c.name, data.query) : esc(c.name)}</span>
               ${c.foil ? '<span class="foil">FOIL</span>' : ''}
+              ${isNewCard(c, newBadgeCutoff) ? '<span class="new-badge">NEW</span>' : ''}
               <div class="setinfo">
                 ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
                 ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
                 ${c.rarity ? ` &middot; ${esc(c.rarity)}` : ''}
                 ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
+                ${c.firstSeen && isNewCard(c, newBadgeCutoff) ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
               </div>
             </td>
           </tr>`).join('')}
@@ -118,6 +124,93 @@ function runSearch(q) {
   $('suggestions').innerHTML = suggest(index, q, 10)
     .map((n) => `<option value="${esc(n)}">`).join('');
 }
+
+/* ------------------------------------------------------------------ *
+ * New arrivals
+ * ------------------------------------------------------------------ */
+
+const tabSearch = $('tab-search');
+const tabNew = $('tab-new');
+const paneSearch = $('pane-search');
+const paneNew = $('pane-new');
+const windowSelect = $('window');
+let activeTab = 'search';
+
+/** Read the window picker into the options newArrivals() expects. */
+function windowOpts() {
+  const v = windowSelect.value;
+  return v === 'last' ? { sinceLastUpdate: true } : { days: Number(v) };
+}
+
+function renderArrivals() {
+  if (!index) return;
+  const opts = windowOpts();
+  const data = newArrivals(index, opts);
+
+  // Badge every card the current window considers new.
+  newBadgeCutoff = data.cutoff;
+
+  const windowLabel = opts.sinceLastUpdate
+    ? (index.previousGeneratedAt
+        ? `since the update on ${esc(fmtDate(index.previousGeneratedAt))}`
+        : 'since the last update')
+    : `in the last ${opts.days} days`;
+
+  if (!data.cutoff) {
+    // Only possible for "last update" on the very first published build.
+    renderResults({ decks: [] }, {
+      emptyText: 'There is no earlier update to compare against yet. Try a longer window.',
+    });
+    return;
+  }
+
+  renderResults(data, {
+    copiesLabel: 'new',
+    emptyText: `No new cards ${windowLabel.replace(/^since/, 'since')}.`,
+    summary:
+      `<b>${data.printingCount}</b> new ${data.printingCount === 1 ? 'card' : 'cards'} ` +
+      `(<b>${data.totalCopies}</b> ${data.totalCopies === 1 ? 'copy' : 'copies'}) ` +
+      `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'}, ${windowLabel}.`,
+  });
+}
+
+/** Headline count on the tab: what the most recent update brought in. */
+function renderNewCount() {
+  const el = $('new-count');
+  const recent = newArrivals(index, { days: 7 }).printingCount;
+  el.hidden = recent === 0;
+  el.textContent = String(recent);
+  el.title = `${recent} new cards in the last 7 days`;
+}
+
+function showTab(which) {
+  activeTab = which;
+  const onSearch = which === 'search';
+
+  tabSearch.classList.toggle('is-active', onSearch);
+  tabNew.classList.toggle('is-active', !onSearch);
+  tabSearch.setAttribute('aria-selected', String(onSearch));
+  tabNew.setAttribute('aria-selected', String(!onSearch));
+  paneSearch.hidden = !onSearch;
+  paneNew.hidden = onSearch;
+
+  const url = new URL(location.href);
+  onSearch ? url.searchParams.delete('new') : url.searchParams.set('new', windowSelect.value);
+  history.replaceState(null, '', url);
+
+  if (onSearch) {
+    // Search results keep a 7-day badge regardless of the arrivals window.
+    newBadgeCutoff = arrivalCutoff(index, { days: 7 });
+    runSearch(qInput.value);
+    qInput.focus();
+  } else {
+    renderArrivals();
+  }
+}
+
+tabSearch.addEventListener('click', () => showTab('search'));
+tabNew.addEventListener('click', () => showTab('new'));
+windowSelect.addEventListener('change', renderArrivals);
 
 /* ------------------------------------------------------------------ *
  * Loading the index
@@ -148,9 +241,20 @@ async function loadIndex() {
     emptyEl.className = 'empty';
     emptyEl.textContent = 'Type a card name to see which decks have it.';
 
-    const initial = new URLSearchParams(location.search).get('q');
-    if (initial) { qInput.value = initial; runSearch(initial); }
-    qInput.focus();
+    newBadgeCutoff = arrivalCutoff(index, { days: 7 });
+    renderNewCount();
+
+    const params = new URLSearchParams(location.search);
+    const initial = params.get('q');
+    if (initial) qInput.value = initial;
+
+    if (params.has('new')) {
+      const w = params.get('new');
+      if ([...windowSelect.options].some((o) => o.value === w)) windowSelect.value = w;
+      showTab('new');
+    } else {
+      showTab('search');
+    }
   } catch {
     $('index-status').innerHTML = '<span class="dot bad"></span>Could not load the card index.';
     emptyEl.className = 'empty';
@@ -269,7 +373,8 @@ async function followRun(runId, startedAt) {
       ? `Updated: ${index.stats.decks} decks, ${index.stats.copies.toLocaleString()} cards.`
       : 'Update finished. The published page may take a minute to refresh; reload shortly.';
 
-    if (qInput.value.trim()) runSearch(qInput.value);
+    renderNewCount();
+    activeTab === 'new' ? renderArrivals() : runSearch(qInput.value);
     setTimeout(() => { progressEl.hidden = true; }, 10000);
     return;
   }
