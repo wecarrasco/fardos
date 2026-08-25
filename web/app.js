@@ -96,13 +96,13 @@ function renderResults(data, opts = {}) {
             <td>
               <span class="name">${data.query ? highlight(c.name, data.query) : esc(c.name)}</span>
               ${c.foil ? '<span class="foil">FOIL</span>' : ''}
-              ${isNewCard(c, newBadgeCutoff) ? '<span class="new-badge">NEW</span>' : ''}
+              ${opts.allNew || isNewCard(c, newBadgeCutoff) ? '<span class="new-badge">NEW</span>' : ''}
               <div class="setinfo">
                 ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
                 ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
                 ${c.rarity ? ` &middot; ${esc(c.rarity)}` : ''}
                 ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
-                ${c.firstSeen && isNewCard(c, newBadgeCutoff) ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
+                ${c.firstSeen && (opts.allNew || isNewCard(c, newBadgeCutoff)) ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
               </div>
             </td>
           </tr>`).join('')}
@@ -147,26 +147,28 @@ function renderArrivals() {
   const opts = windowOpts();
   const data = newArrivals(index, opts);
 
-  // Badge every card the current window considers new.
-  newBadgeCutoff = data.cutoff;
-
   const windowLabel = opts.sinceLastUpdate
-    ? (index.previousGeneratedAt
-        ? `since the update on ${esc(fmtDate(index.previousGeneratedAt))}`
-        : 'since the last update')
+    ? `in the update on ${esc(fmtDate(index.generatedAt))}`
     : `in the last ${opts.days} days`;
 
-  if (!data.cutoff) {
-    // Only possible for "last update" on the very first published build.
+  if (!data.available) {
+    // An index published before this field existed cannot answer the question.
     renderResults({ decks: [] }, {
-      emptyText: 'There is no earlier update to compare against yet. Try a longer window.',
+      emptyText: 'This window needs a newer index. Press "Update now", or pick a day range.',
     });
     return;
   }
 
+  // Most updates change nothing, so an empty "last update" is the normal case,
+  // not a fault. Point at the wider window rather than leaving a dead end.
+  const emptyText = opts.sinceLastUpdate
+    ? 'The latest update did not add any cards. Try one of the day ranges to see recent arrivals.'
+    : `No cards have been added in the last ${opts.days} days.`;
+
   renderResults(data, {
     copiesLabel: 'new',
-    emptyText: `No new cards ${windowLabel.replace(/^since/, 'since')}.`,
+    allNew: true,
+    emptyText,
     summary:
       `<b>${data.printingCount}</b> new ${data.printingCount === 1 ? 'card' : 'cards'} ` +
       `(<b>${data.totalCopies}</b> ${data.totalCopies === 1 ? 'copy' : 'copies'}) ` +

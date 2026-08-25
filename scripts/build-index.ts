@@ -130,16 +130,22 @@ const previous = readPrevious(previousPath);
 const diff = diffDecks(decks, previous);
 
 const generatedAt = new Date().toISOString();
-const newPrintings = stampArrivals(decks, previous, generatedAt.slice(0, 10));
+const arrivedKeys = stampArrivals(decks, previous, generatedAt.slice(0, 10));
 
 const index = {
   generatedAt,
   /** Lets the site offer a "since the last update" window. */
   previousGeneratedAt: previous?.generatedAt ?? null,
+  /**
+   * Exactly what this build brought in. Stored as keys rather than inferred
+   * from dates because two builds run on the same day, and a date comparison
+   * would keep showing the morning's arrivals after a quiet evening build.
+   */
+  lastUpdate: { newPrintings: arrivedKeys },
   source: linktreeUrl(),
   stats: {
     decks: decks.length, entries, copies, names,
-    newPrintings, skipped: gone, failed,
+    newPrintings: arrivedKeys.length, skipped: gone, failed,
   },
   decks,
 };
@@ -152,7 +158,7 @@ writeFileSync(previousPath, JSON.stringify(index));
 const sizeKb = Math.round(Buffer.byteLength(JSON.stringify(index)) / 1024);
 log.info('index written', {
   out: previousPath, sizeKb,
-  decks: decks.length, entries, copies, names, newPrintings,
+  decks: decks.length, entries, copies, names, newPrintings: arrivedKeys.length,
   added: diff.added, removed: diff.removed, changed: diff.changed,
   skipped: gone, failed,
 });
@@ -164,7 +170,7 @@ const summary = diff.first
      diff.added ? `${diff.added} added` : null,
      diff.removed ? `${diff.removed} removed` : null,
      diff.changed ? `${diff.changed} changed` : null,
-     newPrintings ? `${newPrintings} new cards` : null,
+     arrivedKeys.length ? `${arrivedKeys.length} new cards` : null,
      failed ? `${failed} failed` : null,
     ].filter(Boolean).join(', ');
 console.log(summary);

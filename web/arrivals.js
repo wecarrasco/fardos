@@ -25,14 +25,19 @@
  * @property {IndexCard[]} cards
  *
  * @typedef {object} ArrivalsResult
- * @property {string|null} cutoff
+ * @property {string|null} cutoff null for the exact-build window
+ * @property {boolean} available false when the index cannot answer this window
  * @property {number} deckCount
  * @property {number} hitCount
  * @property {number} totalCopies
  * @property {number} printingCount distinct printings, so one card in two decks counts once
  * @property {ArrivalGroup[]} decks
  *
- * @typedef {{generatedAt?: string, previousGeneratedAt?: string|null, decks?: IndexDeck[]}} ArrivalsIndex
+ * @typedef {object} ArrivalsIndex
+ * @property {string} [generatedAt]
+ * @property {string|null} [previousGeneratedAt]
+ * @property {{newPrintings: string[]}} [lastUpdate] exactly what the most recent build added
+ * @property {IndexDeck[]} [decks]
  */
 
 /** Local calendar date N days ago, as YYYY-MM-DD. */
@@ -51,12 +56,31 @@ function daysAgoDate(days) {
  */
 export function arrivalCutoff(index, opts = {}) {
   if (opts.sinceLastUpdate) {
-    // Everything stamped after the previous build ran, which is exactly what
-    // the last update brought in.
-    return index?.previousGeneratedAt ? index.previousGeneratedAt.slice(0, 10) : null;
+    // Not a date: "the last update" is a specific build, and two builds run on
+    // the same day. See lastUpdateKeys().
+    return null;
   }
   return daysAgoDate(opts.days ?? 7);
 }
+
+/**
+ * Printings the most recent build added, or null when the index predates this
+ * field (nothing to show rather than a wrong answer).
+ *
+ * @param {ArrivalsIndex | null | undefined} index
+ * @returns {Set<string>|null}
+ */
+export function lastUpdateKeys(index) {
+  const keys = index?.lastUpdate?.newPrintings;
+  return Array.isArray(keys) ? new Set(keys) : null;
+}
+
+/**
+ * Identity of a printing, matching the key the build script writes.
+ * @param {IndexCard} c
+ */
+export const printingKey = (c) =>
+  `${c.name}|${c.setId ?? ''}|${c.collectorNumber ?? ''}|${c.foil ? 'F' : ''}`;
 
 /**
  * @param {IndexCard} card
@@ -76,8 +100,19 @@ export function isNewCard(card, cutoff) {
  */
 export function newArrivals(index, opts = {}) {
   const cutoff = arrivalCutoff(index, opts);
-  const empty = { cutoff, deckCount: 0, hitCount: 0, totalCopies: 0, printingCount: 0, decks: [] };
-  if (!cutoff || !index?.decks) return empty;
+  const keys = opts.sinceLastUpdate ? lastUpdateKeys(index) : null;
+  const available = opts.sinceLastUpdate ? keys !== null : cutoff !== null;
+
+  const empty = {
+    cutoff, deckCount: 0, hitCount: 0, totalCopies: 0, printingCount: 0,
+    available, decks: [],
+  };
+  if (!available || !index?.decks) return empty;
+
+  /** Membership for the exact-build window, date range otherwise. */
+  const matchesWindow = keys
+    ? (c) => keys.has(printingKey(c))
+    : (c) => isNewCard(c, cutoff);
 
   const limit = opts.limit ?? 2000;
   /** @type {ArrivalGroup[]} */
@@ -87,16 +122,14 @@ export function newArrivals(index, opts = {}) {
   let totalCopies = 0;
 
   for (const deck of index.decks) {
-    const matches = deck.cards.filter((c) => isNewCard(c, cutoff));
+    const matches = deck.cards.filter(matchesWindow);
     if (!matches.length) continue;
 
     // Newest first within a deck, then alphabetically for a stable order.
     matches.sort((a, b) => (b.firstSeen ?? '').localeCompare(a.firstSeen ?? '') ||
                            a.name.localeCompare(b.name));
 
-    for (const c of matches) {
-      printings.add(`${c.name}|${c.setId ?? ''}|${c.collectorNumber ?? ''}|${c.foil ? 'F' : ''}`);
-    }
+    for (const c of matches) printings.add(printingKey(c));
     hitCount += matches.length;
     totalCopies += matches.reduce((n, c) => n + c.quantity, 0);
 
@@ -119,6 +152,7 @@ export function newArrivals(index, opts = {}) {
 
   return {
     cutoff,
+    available,
     deckCount: groups.length,
     hitCount,
     totalCopies,

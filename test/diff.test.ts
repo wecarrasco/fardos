@@ -18,7 +18,7 @@ test('a first build stamps nothing', () => {
   // The regression this guards: dating every card with no history would
   // announce the whole catalogue as new arrivals.
   const decks = [deck('a', [card('Alpha'), card('Beta', { collectorNumber: '2' })])];
-  assert.equal(stampArrivals(decks, null, TODAY), 0);
+  assert.equal(stampArrivals(decks, null, TODAY).length, 0);
   assert.ok(decks[0]!.cards.every((c) => c.firstSeen === undefined));
 });
 
@@ -26,7 +26,8 @@ test('printings absent from the previous index are dated today', () => {
   const previous = { decks: [deck('a', [card('Old')])] };
   const decks = [deck('a', [card('Old'), card('Brand New', { collectorNumber: '9' })])];
 
-  assert.equal(stampArrivals(decks, previous, TODAY), 1);
+  const arrived = stampArrivals(decks, previous, TODAY);
+  assert.deepEqual(arrived, ['Brand New|set|9|'], 'returns the keys, for the exact-build window');
   assert.equal(decks[0]!.cards[0]!.firstSeen, undefined, 'pre-existing stays undated');
   assert.equal(decks[0]!.cards[1]!.firstSeen, TODAY);
 });
@@ -35,7 +36,7 @@ test('an existing arrival date is carried forward, not overwritten', () => {
   const previous = { decks: [deck('a', [card('Known', { firstSeen: EARLIER })])] };
   const decks = [deck('a', [card('Known')])];
 
-  assert.equal(stampArrivals(decks, previous, TODAY), 0);
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 0);
   assert.equal(decks[0]!.cards[0]!.firstSeen, EARLIER, 'must not be re-dated to today');
 });
 
@@ -44,7 +45,7 @@ test('a card moved between decks is not a new arrival', () => {
   const previous = { decks: [deck('a', [card('Wanderer', { firstSeen: EARLIER })])] };
   const decks = [deck('b', [card('Wanderer')])];
 
-  assert.equal(stampArrivals(decks, previous, TODAY), 0);
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 0);
   assert.equal(decks[0]!.cards[0]!.firstSeen, EARLIER);
 });
 
@@ -65,35 +66,35 @@ test('the same printing in several decks keeps the earliest date', () => {
 test('one new printing appearing in two decks counts once', () => {
   const previous = { decks: [deck('a', [])] };
   const decks = [deck('a', [card('Fresh')]), deck('b', [card('Fresh')])];
-  assert.equal(stampArrivals(decks, previous, TODAY), 1);
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 1);
 });
 
 test('foil and non-foil are distinct printings', () => {
   const previous = { decks: [deck('a', [card('Dual')])] };
   const decks = [deck('a', [card('Dual'), card('Dual', { foil: true })])];
 
-  assert.equal(stampArrivals(decks, previous, TODAY), 1, 'only the foil is new');
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 1, 'only the foil is new');
   assert.equal(decks[0]!.cards[1]!.firstSeen, TODAY);
 });
 
 test('a different printing of a stocked card is a new arrival', () => {
   const previous = { decks: [deck('a', [card('Reprint', { setId: 'aaa' })])] };
   const decks = [deck('a', [card('Reprint', { setId: 'aaa' }), card('Reprint', { setId: 'bbb' })])];
-  assert.equal(stampArrivals(decks, previous, TODAY), 1);
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 1);
 });
 
 test('quantity changes alone are not arrivals', () => {
   const previous = { decks: [deck('a', [card('Restocked', { quantity: 1, firstSeen: EARLIER })])] };
   const decks = [deck('a', [card('Restocked', { quantity: 12 })])];
 
-  assert.equal(stampArrivals(decks, previous, TODAY), 0);
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 0);
   assert.equal(decks[0]!.cards[0]!.firstSeen, EARLIER);
 });
 
 test('a card that left and came back is treated as arriving again', () => {
   const previous = { decks: [deck('a', [card('Other')])] };
   const decks = [deck('a', [card('Returned')])];
-  assert.equal(stampArrivals(decks, previous, TODAY), 1, 'back in stock reads as new');
+  assert.equal(stampArrivals(decks, previous, TODAY).length, 1, 'back in stock reads as new');
 });
 
 test('printingKey separates on every field that matters', () => {

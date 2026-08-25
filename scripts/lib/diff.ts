@@ -68,14 +68,16 @@ export function diffDecks(decks: DiffDeck[], prev: PreviousIndex | null) {
  *
  * Mutates `decks` in place.
  *
- * @returns the number of newly arrived printings
+ * @returns the keys of printings that arrived in this build. Returned rather
+ *   than merely counted so the site can offer an exact "since the last update"
+ *   window: comparing dates alone cannot separate two builds on the same day.
  */
 export function stampArrivals(
   decks: DiffDeck[],
   prev: PreviousIndex | null,
   today: string,
-): number {
-  if (!prev?.decks) return 0;
+): string[] {
+  if (!prev?.decks) return [];
 
   const known = new Map<string, string | undefined>();
   for (const deck of prev.decks) {
@@ -104,5 +106,5 @@ export function stampArrivals(
       }
     }
   }
-  return arrived.size;
+  return [...arrived];
 }

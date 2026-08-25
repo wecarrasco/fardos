@@ -141,6 +141,21 @@ previous index. Some consequences worth knowing:
   printing, so it does not appear here.
 - **A card that leaves and returns reads as new**, which matches how a buyer would see it.
 
+### The two kinds of window
+
+**Day ranges** (7 / 30 / 90) ask "what arrived recently" and are the default, so a card
+added in the morning stays listed for a week regardless of how many quiet builds run in
+between. This is the window most people want.
+
+**"Since the last update"** asks "what did the most recent build bring in", and is empty
+whenever that build added nothing — which is most of them. That is the honest answer, not
+a fault, so the empty state points at the day ranges instead of leaving a dead end.
+
+It is answered by an explicit list of the printings each build added, stored in the index,
+rather than by comparing dates. Two builds run on the same day, and a date comparison
+could not tell the evening's arrivals from the morning's — it would keep showing the
+morning's cards after a quiet evening build.
+
 ### How it survives twice-daily builds
 
 Each build stamps every card with `firstSeen`, the date its printing first appeared, and

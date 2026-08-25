@@ -19,11 +19,15 @@ const card = (name: string, firstSeen?: string, extra: Record<string, unknown> =
   ...extra,
 });
 
-const index = (decks: any[], previousGeneratedAt?: string) => ({
+const index = (decks: any[], lastUpdatePrintings?: string[]) => ({
   generatedAt: new Date().toISOString(),
-  previousGeneratedAt: previousGeneratedAt ?? null,
+  previousGeneratedAt: new Date(Date.now() - 43200000).toISOString(),
+  ...(lastUpdatePrintings ? { lastUpdate: { newPrintings: lastUpdatePrintings } } : {}),
   decks,
 });
+
+/** Matches the key the build script writes. */
+const key = (name: string, cn = '1', foil = false) => `${name}|set|${cn}|${foil ? 'F' : ''}`;
 
 const deck = (id: string, cards: any[]) => ({
   id, name: `Deck ${id}`, url: `https://manabox.app/decks/${id}`,
@@ -72,20 +76,51 @@ test('the window boundary is inclusive', () => {
  * Since the last update
  * ---------------------------------------------------------------- */
 
-test('"since last update" uses the previous build date', () => {
+test('"since last update" lists exactly what the latest build added', () => {
   const i = index(
     [deck('a', [card('After', today), card('Before', twentyDaysAgo, { collectorNumber: '2' })])],
-    new Date(Date.now() - 86400000).toISOString(),
+    [key('After')],
   );
-  const r = newArrivals(i, { sinceLastUpdate: true });
-  assert.deepEqual(r.decks[0]!.cards.map((c) => c.name), ['After']);
+  assert.deepEqual(newArrivals(i, { sinceLastUpdate: true }).decks[0]!.cards.map((c) => c.name),
+    ['After']);
 });
 
-test('"since last update" is unavailable on the first published build', () => {
-  const i = index([deck('a', [card('Fresh', today)])]);   // previousGeneratedAt null
+test('a quiet update empties "since last update" but not the day ranges', () => {
+  // The morning build added two cards; the evening build added none. Both are
+  // stamped today, so a date comparison would wrongly still show them here.
+  const decks = [deck('a', [
+    card('Morning A', today),
+    card('Morning B', today, { collectorNumber: '2' }),
+    card('Ancient', twentyDaysAgo, { collectorNumber: '3' }),
+  ])];
+  const afterQuietBuild = index(decks, []);   // this build added nothing
+
+  assert.equal(newArrivals(afterQuietBuild, { sinceLastUpdate: true }).printingCount, 0,
+    'the latest update genuinely added nothing');
+  assert.equal(newArrivals(afterQuietBuild, { days: 7 }).printingCount, 2,
+    'but the morning arrivals are still recent');
+});
+
+test('two builds on one day do not bleed into each other', () => {
+  const decks = [deck('a', [card('Morning', today), card('Evening', today, { collectorNumber: '2' })])];
+  const eveningBuild = index(decks, [key('Evening', '2')]);
+
+  assert.deepEqual(
+    newArrivals(eveningBuild, { sinceLastUpdate: true }).decks[0]!.cards.map((c) => c.name),
+    ['Evening'],
+    'same-day arrivals must be separable by build, not just by date',
+  );
+});
+
+test('"since last update" is unavailable on an index that predates the field', () => {
+  const i = index([deck('a', [card('Fresh', today)])]);   // no lastUpdate key
   const r = newArrivals(i, { sinceLastUpdate: true });
-  assert.equal(r.cutoff, null, 'the UI uses this to offer a longer window instead');
+  assert.equal(r.available, false, 'the UI tells the reader to update rather than showing zero');
   assert.deepEqual(r.decks, []);
+});
+
+test('day ranges stay available on any index', () => {
+  assert.equal(newArrivals(index([deck('a', [card('Fresh', today)])]), { days: 7 }).available, true);
 });
 
 /* ---------------------------------------------------------------- *
@@ -147,13 +182,10 @@ test('isNewCard needs both a cutoff and a date', () => {
   assert.equal(isNewCard(card('x', twentyDaysAgo), today), false);
 });
 
-test('arrivalCutoff returns a plain date', () => {
+test('arrivalCutoff is a date for day ranges and null for the build window', () => {
   assert.match(arrivalCutoff(index([]), { days: 7 })!, /^\d{4}-\d{2}-\d{2}$/);
+  // "The last update" is a specific build, not a date, so there is no cutoff.
   assert.equal(arrivalCutoff(index([]), { sinceLastUpdate: true }), null);
-  assert.equal(
-    arrivalCutoff(index([], '2026-08-20T10:00:00.000Z'), { sinceLastUpdate: true }),
-    '2026-08-20',
-  );
 });
 
 test('a missing or empty index does not throw', () => {
