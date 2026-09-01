@@ -17,6 +17,7 @@
       <button id="tab-new" class="tab" role="tab" aria-selected="false">
         New arrivals <span id="new-count" class="count" hidden></span>
       </button>
+      <button id="tab-list" class="tab" role="tab" aria-selected="false">Decklist</button>
     </div>
 
     <div id="pane-search">
@@ -24,6 +25,16 @@
         <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
                spellcheck="false" list="suggestions" disabled>
         <datalist id="suggestions"></datalist>
+      </div>
+    </div>
+
+    <div id="pane-list" hidden>
+      <textarea id="decklist" rows="7" spellcheck="false"
+        placeholder="Paste a ManaBox or Moxfield CSV export, or a plain list:&#10;&#10;4 Lightning Bolt&#10;1 Sol Ring (SLD) 2467&#10;2 Ocelot Pride *F*&#10;Seedborn Muse"></textarea>
+      <div class="listbar">
+        <button id="check-list" type="button" class="btn">Check list</button>
+        <button id="clear-list" type="button" class="btn secondary">Clear</button>
+        <span id="list-note" class="status"></span>
       </div>
     </div>
 

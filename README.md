@@ -150,6 +150,49 @@ with no network involved.
 
 ---
 
+## Decklist
+
+The **Decklist** tab takes a whole list at once and reports what the seller has, where,
+and at which discount. It reads:
+
+- a **ManaBox** CSV export
+- a **Moxfield** CSV export
+- a plain list — `4 Lightning Bolt`, `4x Sol Ring`, `1 Sol Ring (SLD) 2467`,
+  `2 Ocelot Pride *F*`, or just a bare card name
+
+The format is detected from the text, so there is nothing to choose. Section headings
+(`Deck`, `Sideboard`, `Commander`, `Maybeboard`…), comments and `SB:` prefixes are
+skipped; anything that is not a card is counted as a skipped row rather than guessed at.
+
+You get, per card: whether it is fully available, short of the count you asked for, or
+not stocked; how many copies exist; and the deck holding them with the best discount
+first. Below that, the decks covering the most of your list, and a copyable list of what
+is missing.
+
+### Why the two CSVs need different handling
+
+ManaBox writes `Name,Set code,Collector number,Foil,Quantity`; Moxfield writes
+`"Count","Name","Edition","Foil","Collector Number"`. Columns are matched by a list of
+aliases, so both work without knowing which app produced the file, and quoted fields
+containing commas — `"Jace, Beleren"` — survive.
+
+### Matching rules
+
+**On the whole name, not a substring.** A line reading `Bolt` means the card called Bolt;
+offering everything containing "bolt" would bury the answer.
+
+**The front face counts.** Lists write `Invasion of Arcavios` while the index holds
+`Invasion of Arcavios // Invocation of the Founders`, so both forms match.
+
+**A named printing narrows but never hides.** `1 Sol Ring (SLD) 2467` prefers that exact
+printing; if the seller does not have it, the other printings are still shown rather than
+the card being reported as missing.
+
+Your pasted list is kept in the browser so it survives a reload. Ctrl/Cmd+Enter checks it
+without reaching for the button.
+
+---
+
 ## Discounts
 
 The seller advertises discounts in the Linktree text itself — "MARVEL — 10% OFF",
@@ -397,6 +440,7 @@ web/                    the site; copied verbatim into the build output
   normalize.js          card-name folding, shared by build and browser
   arrivals.js           the New arrivals view
   cards.js              image URLs and cross-deck lookups
+  decklist.js           decklist and CSV parsing, and list matching
   preview.js            the hover/tap card panel
   config.js             repo details for the update button
 scripts/

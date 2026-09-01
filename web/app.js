@@ -4,6 +4,7 @@ import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel } from './cards.js';
+import { parseDecklist, matchDecklist } from './decklist.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -188,12 +189,15 @@ function runSearch(q) {
  * New arrivals
  * ------------------------------------------------------------------ */
 
-const tabSearch = $('tab-search');
-const tabNew = $('tab-new');
-const paneSearch = $('pane-search');
-const paneNew = $('pane-new');
 const windowSelect = $('window');
 let activeTab = 'search';
+
+/** Tab id -> its button, its pane, and what to draw when it opens. */
+const TABS = {
+  search: { tab: 'tab-search', pane: 'pane-search' },
+  new:    { tab: 'tab-new',    pane: 'pane-new' },
+  list:   { tab: 'tab-list',   pane: 'pane-list' },
+};
 
 /** Read the window picker into the options newArrivals() expects. */
 function windowOpts() {
@@ -246,32 +250,143 @@ function renderNewCount() {
 
 function showTab(which) {
   activeTab = which;
-  const onSearch = which === 'search';
 
-  tabSearch.classList.toggle('is-active', onSearch);
-  tabNew.classList.toggle('is-active', !onSearch);
-  tabSearch.setAttribute('aria-selected', String(onSearch));
-  tabNew.setAttribute('aria-selected', String(!onSearch));
-  paneSearch.hidden = !onSearch;
-  paneNew.hidden = onSearch;
+  for (const [id, refs] of Object.entries(TABS)) {
+    const on = id === which;
+    const tab = $(refs.tab);
+    tab.classList.toggle('is-active', on);
+    tab.setAttribute('aria-selected', String(on));
+    $(refs.pane).hidden = !on;
+  }
 
   const url = new URL(location.href);
-  onSearch ? url.searchParams.delete('new') : url.searchParams.set('new', windowSelect.value);
+  url.searchParams.delete('new');
+  url.searchParams.delete('list');
+  if (which === 'new') url.searchParams.set('new', windowSelect.value);
+  if (which === 'list') url.searchParams.set('list', '1');
   history.replaceState(null, '', url);
 
-  if (onSearch) {
-    // Search results keep a 7-day badge regardless of the arrivals window.
-    newBadgeCutoff = arrivalCutoff(index, { days: 7 });
-    runSearch(qInput.value);
-    qInput.focus();
-  } else {
-    renderArrivals();
-  }
+  // The NEW badge in search results always means "the last 7 days", whatever
+  // window the arrivals tab happens to be showing.
+  newBadgeCutoff = arrivalCutoff(index, { days: 7 });
+
+  if (which === 'search') { runSearch(qInput.value); qInput.focus(); }
+  else if (which === 'new') renderArrivals();
+  else { renderDecklist(); listInput.focus(); }
 }
 
-tabSearch.addEventListener('click', () => showTab('search'));
-tabNew.addEventListener('click', () => showTab('new'));
+for (const [id, refs] of Object.entries(TABS)) {
+  $(refs.tab).addEventListener('click', () => showTab(id));
+}
 windowSelect.addEventListener('change', renderArrivals);
+
+/* ------------------------------------------------------------------ *
+ * Decklist
+ * ------------------------------------------------------------------ */
+
+const listInput = $('decklist');
+const LIST_KEY = 'decklist';
+
+/** One row per pasted line, in the order it was written. */
+function renderDecklistRow(m) {
+  const best = m.sources[0];
+  const more = m.sources.length - 1;
+
+  const where = m.status === 'missing'
+    ? '<div class="dl-where">Not stocked.</div>'
+    : `<div class="dl-where">
+         ${best.quantity}&times; in
+         <a href="${esc(best.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(best.deckName)}</a>
+         ${best.discount ? `<span class="cp-off">${best.discount}% off</span>` : ''}
+         ${more > 0 ? `&middot; +${more} other ${more === 1 ? 'deck' : 'decks'}` : ''}
+       </div>`;
+
+  return `
+    <div class="dl-row ${m.status === 'available' ? 'ok' : m.status === 'partial' ? 'part' : 'miss'}">
+      <div class="dl-mark"></div>
+      <div>
+        <span class="dl-qty">${m.wanted}&times;</span>
+        <span class="dl-name">${esc(m.entry.name)}</span>
+        ${m.entry.foil ? '<span class="foil">FOIL</span>' : ''}
+        ${where}
+      </div>
+      <div class="dl-have">${m.status === 'missing' ? '&mdash;' : `<b>${m.available}</b> available`}</div>
+    </div>`;
+}
+
+function renderDecklist() {
+  if (!index) return;
+
+  const { entries, skipped, format } = parseDecklist(listInput.value);
+  const what = format === 'csv' ? 'CSV export' : 'list';
+  $('list-note').textContent = listInput.value.trim()
+    ? `${entries.length} ${entries.length === 1 ? 'card' : 'cards'} read from a ${what}` +
+      (skipped ? `, ${skipped} ${skipped === 1 ? 'row' : 'rows'} skipped.` : '.')
+    : '';
+
+  if (!entries.length) {
+    resultsEl.innerHTML = '';
+    summaryEl.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.className = 'empty';
+    emptyEl.textContent = 'Paste a list above and press "Check list".';
+    return;
+  }
+
+  const { matches, summary } = matchDecklist(index, entries);
+  emptyEl.hidden = true;
+  summaryEl.hidden = false;
+  summaryEl.innerHTML =
+    `<b>${summary.foundCopies}</b> of <b>${summary.wantedCopies}</b> copies available ` +
+    `across <b>${summary.lines}</b> ${summary.lines === 1 ? 'card' : 'cards'}.`;
+
+  const missing = matches.filter((m) => m.status === 'missing');
+
+  resultsEl.innerHTML = `
+    <div class="dl-tiles">
+      <div class="dl-tile ok"><div class="v">${summary.available}</div><div class="k">fully available</div></div>
+      <div class="dl-tile part"><div class="v">${summary.partial}</div><div class="k">not enough copies</div></div>
+      <div class="dl-tile miss"><div class="v">${summary.missing}</div><div class="k">not stocked</div></div>
+    </div>
+
+    <div class="dl-list">${matches.map(renderDecklistRow).join('')}</div>
+
+    ${summary.topDecks.length ? `
+      <h2 style="font-size:15px;margin:22px 0 10px">Decks covering the most of your list</h2>
+      <div class="dl-list">${summary.topDecks.map((d) => `
+        <div class="dl-row ok">
+          <div class="dl-mark"></div>
+          <div><span class="dl-name">
+            <a href="${esc(d.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(d.deckName)}</a>
+          </span>${d.discount ? ` <span class="cp-off">${d.discount}% off</span>` : ''}</div>
+          <div class="dl-have"><b>${d.cards}</b> of your cards</div>
+        </div>`).join('')}</div>` : ''}
+
+    ${missing.length ? `
+      <div class="dl-missing">
+        <h2 style="font-size:15px;margin:0 0 4px">Not stocked (${missing.length})</h2>
+        <div class="setinfo">Copy this back into your deck builder, or try again after an update.</div>
+        <textarea readonly rows="${Math.min(10, missing.length + 1)}">${
+          esc(missing.map((m) => `${m.wanted} ${m.entry.name}`).join('\n'))
+        }</textarea>
+      </div>` : ''}`;
+}
+
+listInput.addEventListener('input', () => {
+  try { localStorage.setItem(LIST_KEY, listInput.value); } catch { /* private mode */ }
+});
+$('check-list').addEventListener('click', renderDecklist);
+$('clear-list').addEventListener('click', () => {
+  listInput.value = '';
+  try { localStorage.removeItem(LIST_KEY); } catch { /* private mode */ }
+  renderDecklist();
+  listInput.focus();
+});
+
+// Ctrl/Cmd+Enter checks the list without reaching for the button.
+listInput.addEventListener('keydown', (ev) => {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') renderDecklist();
+});
 
 /* ------------------------------------------------------------------ *
  * Loading the index
@@ -309,7 +424,13 @@ async function loadIndex() {
     const initial = params.get('q');
     if (initial) qInput.value = initial;
 
-    if (params.has('new')) {
+    try {
+      const saved = localStorage.getItem(LIST_KEY);
+      if (saved) listInput.value = saved;
+    } catch { /* private mode */ }
+
+    if (params.has('list')) showTab('list');
+    else if (params.has('new')) {
       const w = params.get('new');
       if ([...windowSelect.options].some((o) => o.value === w)) windowSelect.value = w;
       showTab('new');
@@ -435,7 +556,9 @@ async function followRun(runId, startedAt) {
       : 'Update finished. The published page may take a minute to refresh; reload shortly.';
 
     renderNewCount();
-    activeTab === 'new' ? renderArrivals() : runSearch(qInput.value);
+    if (activeTab === 'new') renderArrivals();
+    else if (activeTab === 'list') renderDecklist();
+    else runSearch(qInput.value);
     setTimeout(() => { progressEl.hidden = true; }, 10000);
     return;
   }

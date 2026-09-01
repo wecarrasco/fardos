@@ -225,3 +225,47 @@ footer a:hover { color: var(--link); }
 
 /* Discount shown against each deck in the preview's "also in" list. */
 .cp-off { color: #35c26a; font-size: 11px; font-weight: 700; }
+
+/* ---- Decklist ---- */
+#decklist {
+  width: 100%; min-height: 130px; resize: vertical; padding: 10px 12px;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+#decklist:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.listbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.listbar .status { margin-top: 0; }
+
+.dl-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.dl-tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.dl-tile .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dl-tile .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.dl-tile.ok .v { color: #35c26a; }
+.dl-tile.part .v { color: var(--accent); }
+.dl-tile.miss .v { color: #e5544b; }
+
+.dl-list { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.dl-row { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: baseline;
+          padding: 9px 12px; border-top: 1px solid var(--line); }
+.dl-row:first-child { border-top: none; }
+.dl-mark { align-self: stretch; border-radius: 2px; }
+.dl-row.ok  .dl-mark { background: #35c26a; }
+.dl-row.part .dl-mark { background: var(--accent); }
+.dl-row.miss .dl-mark { background: #e5544b; }
+.dl-row.miss .dl-name { color: var(--muted); }
+.dl-qty { color: var(--accent); font-weight: 650; font-variant-numeric: tabular-nums; }
+.dl-name { font-weight: 500; }
+.dl-where { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.dl-where a { color: var(--link); text-decoration: none; }
+.dl-where a:hover { text-decoration: underline; }
+.dl-have { font-size: 12.5px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dl-have b { color: var(--text); }
+
+.dl-missing { margin-top: 18px; }
+.dl-missing textarea {
+  width: 100%; min-height: 70px; margin-top: 6px; padding: 8px 10px;
+  font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 8px; resize: vertical;
+}
