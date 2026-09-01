@@ -22,6 +22,15 @@ const argv = process.argv.slice(2);
 const outFlag = argv.indexOf('--out');
 const outDir = resolve(root, outFlag !== -1 ? argv[outFlag + 1]! : 'dist-site');
 
+/**
+ * Republish the site around the index that is already published, without
+ * scraping anything.
+ *
+ * A change to the frontend does not need 63 fresh deck pages, and re-scraping
+ * for one would be both slow and impolite to the sites involved.
+ */
+const noScrape = argv.includes('--no-scrape');
+
 interface IndexCard {
   name: string;
   /**
@@ -88,6 +97,27 @@ function readPrevious(previousPath: string): PreviousIndex | null {
 }
 
 /* ------------------------------------------------------------------ */
+
+if (noScrape) {
+  const existing = resolve(outDir, 'index.json');
+  if (!existsSync(existing)) {
+    log.error('--no-scrape needs an already published index.json to build around', {
+      expected: existing,
+    });
+    process.exit(1);
+  }
+
+  // The data is left exactly as published; only the site around it is refreshed.
+  mkdirSync(outDir, { recursive: true });
+  cpSync(resolve(root, 'web'), outDir, { recursive: true });
+
+  const kept = JSON.parse(readFileSync(existing, 'utf8')) as { generatedAt?: string; stats?: unknown };
+  log.info('site rebuilt around the published index; nothing was scraped', {
+    out: outDir, indexGeneratedAt: kept.generatedAt, stats: kept.stats,
+  });
+  console.log('site redeployed, index unchanged');
+  process.exit(0);
+}
 
 const links = await scrapeLinktree();
 

@@ -71,6 +71,17 @@ one and the page will ask for it again.
 
 ## Updating the content
 
+### Code changes deploy themselves
+
+Pushing to `main` redeploys the site, but **without scraping**: it republishes around the
+index already live. A frontend change ships in seconds and costs the source sites
+nothing. Only the button and the schedule fetch fresh data.
+
+This matters because pushing used to do nothing at all — a change sat unpublished until
+the next scheduled scrape, up to twelve hours later.
+
+### Refreshing the data
+
 Three ways, all the same job:
 
 - **The button.** Press **Update now** on the site. It calls the GitHub API, then polls
@@ -107,6 +118,7 @@ npm run serve:site      # http://localhost:4173
 | Command | What it does |
 | --- | --- |
 | `npm run build:index` | Scrape and build the static site into `dist-site/` |
+| `npm run build:index -- --no-scrape` | Rebuild the site around an already published index |
 | `npm run serve:site` | Serve `dist-site/` locally |
 | `npm test` | Test suite (offline, ~1s) |
 | `npm run typecheck` | TypeScript check |
