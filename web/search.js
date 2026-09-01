@@ -3,7 +3,9 @@ import { normalizeCardName } from './normalize.js';
 /**
  * Search the static index in the browser.
  *
- * Folded card names are computed on first use and cached on the card object.
+ * Matching tries the query as a phrase first, then falls back to requiring every
+ * word somewhere in the name. Folded card names are computed on first use and
+ * cached on the card object.
  * Shipping them in the index instead would add ~57 KB to every page load to
  * save 4 ms of work, so the browser does it.
  *
@@ -60,11 +62,36 @@ import { normalizeCardName } from './normalize.js';
  */
 const cardNorm = (card) => (card.norm ??= normalizeCardName(card.name));
 
+/**
+ * Rank a folded card name against a folded query.
+ *
+ * The whole query is tried as a phrase first, which is what most people type
+ * and what gives the tightest ranking. Failing that, every word must appear
+ * somewhere in the name, in any order -- so "bolt lightning" and "ancestry
+ * path" find what the reader plainly meant.
+ *
+ * @param {string} norm folded card name
+ * @param {string} q folded query
+ * @param {string[]} words the query split on spaces
+ * @returns {number} 0 exact, 1 phrase prefix, 2 phrase inside, 3 all words present, -1 no match
+ */
+export function rankMatch(norm, q, words) {
+  const at = norm.indexOf(q);
+  if (at === 0) return norm === q ? 0 : 1;
+  if (at > 0) return 2;
+
+  // A single word already failed as a phrase, so there is nothing else to try.
+  if (words.length < 2) return -1;
+  for (const w of words) if (!norm.includes(w)) return -1;
+  return 3;
+}
+
 export function search(index, query, opts = {}) {
   const q = normalizeCardName(query ?? '');
   const empty = { query: query ?? '', deckCount: 0, hitCount: 0, totalCopies: 0, decks: [] };
   if (!q || !index?.decks) return empty;
 
+  const words = q.split(' ').filter(Boolean);
   const limit = opts.limit ?? 2000;
   /** @type {DeckHits[]} */
   const groups = [];
@@ -76,12 +103,9 @@ export function search(index, query, opts = {}) {
     let matches = null;
 
     for (const card of deck.cards) {
-      const norm = cardNorm(card);
-      const at = norm.indexOf(q);
-      if (at === -1) continue;
+      const rank = rankMatch(cardNorm(card), q, words);
+      if (rank === -1) continue;
 
-      // Rank: 0 exact name, 1 starts with the query, 2 contains it.
-      const rank = norm === q ? 0 : at === 0 ? 1 : 2;
       (matches ??= []).push({ card, rank });
 
       hitCount++;
@@ -123,13 +147,13 @@ export function suggest(index, query, limit = 10) {
   const q = normalizeCardName(query ?? '');
   if (!q || !index?.decks) return [];
 
+  const words = q.split(' ').filter(Boolean);
   /** @type {Map<string, number>} */
   const best = new Map();
   for (const deck of index.decks) {
     for (const card of deck.cards) {
-      const at = cardNorm(card).indexOf(q);
-      if (at === -1) continue;
-      const rank = at === 0 ? 0 : 1;
+      const rank = rankMatch(cardNorm(card), q, words);
+      if (rank === -1) continue;
       const seen = best.get(card.name);
       if (seen === undefined || rank < seen) best.set(card.name, rank);
     }

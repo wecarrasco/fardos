@@ -21,7 +21,13 @@ let index = null;
  * Rendering
  * ------------------------------------------------------------------ */
 
-/** Wrap the matched span of a card name in <mark>, matching on the folded form. */
+/**
+ * Wrap the matched parts of a card name in <mark>, matching on the folded form.
+ *
+ * Mirrors how search ranks: the whole query is marked when it appears as a
+ * phrase, and otherwise each word is marked wherever it lands -- so a reader
+ * who typed "bolt lightning" can still see why a result matched.
+ */
 function highlight(name, query) {
   const nq = normalizeCardName(query);
   if (!nq) return esc(name);
@@ -38,13 +44,40 @@ function highlight(name, query) {
     }
     for (const ch of piece) { normed += ch; map.push(i); }
   }
-  const at = normed.indexOf(nq);
-  if (at === -1) return esc(name);
 
-  const start = map[at] ?? 0;
-  const end = at + nq.length < map.length ? map[at + nq.length] : name.length;
-  return esc(name.slice(0, start)) + '<mark>' + esc(name.slice(start, end)) + '</mark>' +
-         esc(name.slice(end));
+  /** Normalized offsets to mark, as [start, end) pairs. */
+  const spans = [];
+  const addAll = (needle) => {
+    if (!needle) return;
+    for (let at = normed.indexOf(needle); at !== -1; at = normed.indexOf(needle, at + needle.length)) {
+      spans.push([at, at + needle.length]);
+    }
+  };
+
+  if (normed.includes(nq)) addAll(nq);
+  else for (const w of nq.split(' ')) addAll(w);
+  if (!spans.length) return esc(name);
+
+  // Merge overlaps so nested <mark> elements cannot be produced.
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged = [spans[0]];
+  for (const [from, to] of spans.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (from <= last[1]) last[1] = Math.max(last[1], to);
+    else merged.push([from, to]);
+  }
+
+  // Translate back to offsets in the original string.
+  const at = (i) => (i < map.length ? map[i] : name.length);
+  let out = '';
+  let cursor = 0;
+  for (const [from, to] of merged) {
+    const start = at(from);
+    const end = at(to);
+    out += esc(name.slice(cursor, start)) + '<mark>' + esc(name.slice(start, end)) + '</mark>';
+    cursor = end;
+  }
+  return out + esc(name.slice(cursor));
 }
 
 const fmtDate = (iso) => {

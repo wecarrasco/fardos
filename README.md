@@ -122,6 +122,34 @@ browser — it calls the real GitHub API either way.
 
 ---
 
+## Search
+
+Case- and accent-insensitive substring matching, so `seance` finds `Séance Board` and
+`bolt` finds `Thunderbolt`.
+
+**Word order does not matter.** The query is tried as a phrase first; failing that, every
+word must appear somewhere in the name. So `bolt lightning` finds Lightning Bolt and
+`ancestry path` finds Path of Ancestry — which a plain substring match did not, since it
+made word order mandatory.
+
+Results rank in that same order:
+
+| Rank | Match |
+| --- | --- |
+| 0 | the name is exactly the query |
+| 1 | the query is a phrase at the start of the name |
+| 2 | the query is a phrase inside the name |
+| 3 | the words are present but scattered |
+
+Matched words are highlighted individually, so it is visible why a result matched even
+when the words were given out of order. A single-word query is never split, so it cannot
+match more loosely than it reads.
+
+Everything runs in the browser over the loaded index — around 1 ms across ~8,700 entries,
+with no network involved.
+
+---
+
 ## Card preview
 
 Hovering a card name (tapping it on a phone) opens a panel with the printing's picture
