@@ -2,6 +2,7 @@ import { CONFIG, repoUrl, actionsUrl } from './config.js';
 import { search, suggest } from './search.js';
 import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
+import { createPreview } from './preview.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -60,6 +61,13 @@ const fmtDate = (iso) => {
 /** Cards arriving on or after this date get a NEW badge in either tab. */
 let newBadgeCutoff = null;
 
+/**
+ * Cards in the current render, addressed by index. The preview maps a clicked
+ * element back through this rather than reading data attributes, which keeps
+ * the whole card object available without serialising it into the DOM.
+ */
+let rendered = [];
+
 function renderResults(data, opts = {}) {
   if (!data.decks.length) {
     resultsEl.innerHTML = '';
@@ -77,6 +85,7 @@ function renderResults(data, opts = {}) {
      `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'} ` +
      `(<b>${data.hitCount}</b> matching ${data.hitCount === 1 ? 'entry' : 'entries'}).`);
 
+  rendered = [];
   resultsEl.innerHTML = data.decks.map((d) => `
     <section class="deck">
       <div class="deck-head">
@@ -94,7 +103,9 @@ function renderResults(data, opts = {}) {
           <tr>
             <td class="qty">${c.quantity}&times;</td>
             <td>
-              <span class="name">${data.query ? highlight(c.name, data.query) : esc(c.name)}</span>
+              <button type="button" class="name" data-card="${rendered.push({ card: c, deckId: d.deckId }) - 1}"
+                      aria-expanded="false" aria-haspopup="dialog"
+                      title="Show card">${data.query ? highlight(c.name, data.query) : esc(c.name)}</button>
               ${c.foil ? '<span class="foil">FOIL</span>' : ''}
               ${opts.allNew || isNewCard(c, newBadgeCutoff) ? '<span class="new-badge">NEW</span>' : ''}
               <div class="setinfo">
@@ -466,6 +477,13 @@ qInput.addEventListener('change', () => {
   qInput.value ? url.searchParams.set('q', qInput.value) : url.searchParams.delete('q');
   history.replaceState(null, '', url);
 });
+
+/* ------------------------------------------------------------------ *
+ * Card preview
+ * ------------------------------------------------------------------ */
+
+const preview = createPreview(() => index);
+preview.attach(resultsEl, (anchor) => rendered[Number(anchor.dataset.card)] ?? null);
 
 $('repo-link').href = repoUrl();
 loadIndex();

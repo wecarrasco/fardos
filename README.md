@@ -2,8 +2,8 @@
 
 Search a Magic: The Gathering card name and see **every ManaBox deck on a seller's
 Linktree that currently stocks it** — with quantity, foil status, printing, and a link
-straight to the deck page. A **New arrivals** tab lists what the seller has added
-recently.
+straight to the deck page. Hovering a card name shows the actual card. A **New arrivals**
+tab lists what the seller has added recently.
 
 A static site. No server, no database. GitHub Actions scrapes the sites and publishes a
 JSON index; GitHub Pages serves it; the browser does the searching.
@@ -119,6 +119,47 @@ the right tool for checking a parser after a site change.
 
 The update button will not work against `localhost` unless you have a token in that
 browser — it calls the real GitHub API either way.
+
+---
+
+## Card preview
+
+Hovering a card name (tapping it on a phone) opens a panel with the printing's picture
+and the facts the picture cannot carry:
+
+- how many copies are in **this** deck
+- the total across every printing and deck, when the card appears more than once
+- **which other decks stock the same printing**, with quantities and links
+- a link to the card on Scryfall
+
+The picture comes from Scryfall, resolved from the set code and collector number already
+in the index, so it costs nothing to store and is fetched only when someone looks. Cards
+parsed through the DOM fallback have no printing data; their panel says so rather than
+showing a broken image.
+
+"The same printing" means the same set, collector number and finish. A different set or a
+foil version is deliberately *not* offered as "also in", because someone asking for that
+exact card is not served by a different one. The broader total line covers the by-name
+case.
+
+### Details that took some care
+
+**Opening is delayed 220 ms**, so running the cursor down twenty results does not fire
+twenty image requests. Measured: sweeping eight rows quickly fires none; resting on one
+fires exactly one. Loaded images are cached, so reopening a card is instant.
+
+**The panel reserves the card's aspect ratio before the picture loads.** Without that it
+is measured at the height of its text, positioned against that, and then grows off the
+bottom of the screen when the image arrives.
+
+**It is capped to the viewport height and scrolls inside**, which matters on a phone and
+in a short desktop window, where a full card plus its details is taller than the screen.
+
+**Hover is not assumed.** On a touch device the hover handlers are never attached; the
+card name is a real `<button>`, so tapping opens the panel, and it is pinned to the
+viewport rather than to a row that may be off screen. Clicking with a mouse also pins the
+panel so its links can be reached. Escape, an outside click, scrolling or a resize
+dismisses it, and keyboard focus opens it.
 
 ---
 
@@ -293,6 +334,8 @@ web/                    the site; copied verbatim into the build output
   search.js             the search itself, plain ESM so Node can test it
   normalize.js          card-name folding, shared by build and browser
   arrivals.js           the New arrivals view
+  cards.js              image URLs and cross-deck lookups
+  preview.js            the hover/tap card panel
   config.js             repo details for the update button
 scripts/
   build-index.ts        scrape -> index.json -> dist-site/

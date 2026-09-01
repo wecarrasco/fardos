@@ -62,7 +62,13 @@ table { width: 100%; border-collapse: collapse; }
 td { padding: 8px 14px; border-top: 1px solid var(--line); vertical-align: baseline; }
 tr:first-child td { border-top: none; }
 .qty { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--accent); }
-.name { font-weight: 500; }
+.name {
+  font-weight: 500; font: inherit; font-weight: 500; color: inherit;
+  background: none; border: 0; padding: 0; text-align: left; cursor: pointer;
+  border-bottom: 1px dotted transparent;
+}
+.name:hover, .name:focus-visible { border-bottom-color: var(--muted); }
+.name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 .setinfo { color: var(--muted); font-size: 12.5px; }
 .foil {
   color: var(--foil); border: 1px solid var(--foil); border-radius: 999px;
@@ -142,3 +148,66 @@ footer a:hover { color: var(--link); }
   font-size: 10.5px; padding: 1px 6px; margin-left: 8px; font-weight: 700; letter-spacing: .04em;
 }
 .arrived { color: var(--muted); font-size: 12px; }
+
+/* ---- Card preview ---- */
+.cardpreview {
+  position: absolute; z-index: 50; width: 320px; max-width: calc(100vw - 16px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / .45);
+  pointer-events: none;
+  /* A full card plus its details is taller than a phone screen, and taller than
+     a short desktop window. Cap it and let the panel scroll rather than running
+     off the bottom. */
+  max-height: calc(100vh - 16px);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+}
+/* Pinned by a click, so its links become usable. */
+.cardpreview.is-pinned { pointer-events: auto; }
+
+.cp-img {
+  background: var(--panel-2);
+  /* Reserve the card's shape before the picture arrives, so the panel is its
+     final height when it gets positioned. Without this it is measured short,
+     then grows off the bottom of the screen. */
+  aspect-ratio: 745 / 1040;
+}
+.cp-img:has(.cp-noimg) { aspect-ratio: auto; }
+.cp-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cp-noimg { padding: 22px 14px; text-align: center; color: var(--muted); font-size: 12.5px; }
+
+.cp-body { padding: 10px 12px 12px; }
+.cp-name { font-weight: 650; font-size: 14px; }
+.cp-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.cp-here { margin-top: 8px; font-size: 13px; }
+.cp-here b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.cp-total { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.cp-also { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.cp-also-head { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.cp-also ul { list-style: none; margin: 0; padding: 0; }
+.cp-also li { font-size: 12.5px; padding: 2px 0; display: flex; gap: 7px; }
+.cp-also a { color: var(--link); text-decoration: none; }
+.cp-also a:hover { text-decoration: underline; }
+.cp-q { color: var(--accent); font-weight: 650; font-variant-numeric: tabular-nums; }
+.cp-more, .cp-only { color: var(--muted); font-size: 12px; }
+.cp-link {
+  display: inline-block; margin-top: 10px; font-size: 12.5px; color: var(--link);
+  text-decoration: none;
+}
+.cp-link:hover { text-decoration: underline; }
+
+@media (max-width: 560px) {
+  /* No hover on a phone, so the panel is opened by tapping. Pin it to the
+     viewport instead of to a row, which would often be off screen. */
+  .cardpreview {
+    position: fixed; width: auto;
+    left: 8px !important; right: 8px;
+    top: 8px !important; bottom: 8px;
+    max-height: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cardpreview { animation: cp-in .12s ease-out; }
+  @keyframes cp-in { from { opacity: 0; transform: translateY(4px); } }
+}
