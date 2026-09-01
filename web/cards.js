@@ -50,7 +50,7 @@ export function scryfallPageUrl(card) {
  * @param {{decks?: IndexDeck[]}|null|undefined} index
  * @param {IndexCard} card
  * @param {string} excludeDeckId
- * @returns {{deckId: string, deckName: string, deckUrl: string, quantity: number}[]}
+ * @returns {{deckId: string, deckName: string, deckUrl: string, quantity: number, discount: number|null}[]}
  */
 export function otherDecksWithCard(index, card, excludeDeckId) {
   if (!index?.decks || !card) return [];
@@ -62,10 +62,35 @@ export function otherDecksWithCard(index, card, excludeDeckId) {
     let quantity = 0;
     for (const c of deck.cards) if (printingKey(c) === key) quantity += c.quantity;
     if (quantity > 0) {
-      out.push({ deckId: deck.id, deckName: deck.name, deckUrl: deck.url, quantity });
+      out.push({
+        deckId: deck.id, deckName: deck.name, deckUrl: deck.url, quantity,
+        discount: deck.discount ?? null,
+      });
     }
   }
+  // Best discount first: the reason to look at this list at all is usually to
+  // find the cheaper copy.
+  out.sort((a, b) => (b.discount ?? -1) - (a.discount ?? -1));
   return out;
+}
+
+/**
+ * The same printing offered at a bigger discount somewhere else.
+ *
+ * The seller files a handful of decks under a section whose heading states one
+ * discount while the deck's own label states another, so identical cards do sit
+ * at different prices. This is what surfaces that.
+ *
+ * @param {{decks?: IndexDeck[]}|null|undefined} index
+ * @param {IndexCard} card
+ * @param {{id: string, discount?: number|null}} currentDeck
+ * @returns {{deckId: string, deckName: string, deckUrl: string, quantity: number, discount: number|null}|null}
+ */
+export function betterDealFor(index, card, currentDeck) {
+  const here = currentDeck?.discount ?? 0;
+  const others = otherDecksWithCard(index, card, currentDeck?.id ?? '');
+  const best = others.find((o) => (o.discount ?? 0) > here);
+  return best ?? null;
 }
 
 /**
@@ -89,4 +114,34 @@ export function totalsForName(index, name) {
     }
   }
   return { copies, printings: printings.size, decks: decks.size };
+}
+
+/**
+ * Section label with its discount phrase removed, for when the percentage is
+ * already shown as its own badge.
+ *
+ * The seller writes it several ways -- "MARVEL - 10% OFF",
+ * "LINKS 10% de DESCUENTO", "SAF STANDARD (10% OFF)" -- so this strips the
+ * phrase and tidies whatever separator it leaves behind. If that would leave
+ * nothing meaningful, the original is kept: a slightly redundant label beats an
+ * empty one.
+ *
+ * @param {string|null} category
+ * @returns {string|null}
+ */
+export function categoryLabel(category) {
+  if (!category) return category ?? null;
+
+  const stripped = category
+    // "(20% OFF)" or "( 20 % de descuento )"
+    .replace(/\(\s*\d{1,2}\s*%[^)]*\)/gi, '')
+    // a trailing "20% OFF" / "20% de DESCUENTO" with no brackets
+    .replace(/\d{1,2}\s*%\s*(?:off|de\s+descuento|descuento)?/gi, '')
+    // whatever separator now dangles
+    .replace(/[\s\u2013\u2014:,-]+$/u, '')
+    .replace(/^[\s\u2013\u2014:,-]+/u, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return stripped.length >= 3 ? stripped : category;
 }

@@ -19,6 +19,7 @@
  * @property {string} deckName
  * @property {string} deckUrl
  * @property {string|null} category
+ * @property {number|null} discount
  * @property {string|null} deckUpdatedAt
  * @property {string|undefined} newestArrival
  * @property {number} totalQuantity
@@ -138,6 +139,7 @@ export function newArrivals(index, opts = {}) {
       deckName: deck.name,
       deckUrl: deck.url,
       category: deck.category,
+      discount: deck.discount ?? null,
       deckUpdatedAt: deck.updatedAt,
       newestArrival: matches[0].firstSeen,
       totalQuantity: matches.reduce((n, c) => n + c.quantity, 0),

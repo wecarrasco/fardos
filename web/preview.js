@@ -59,7 +59,8 @@ export function createPreview(getIndex) {
            <div class="cp-also-head">Also in ${others.length} other ${others.length === 1 ? 'deck' : 'decks'}</div>
            <ul>${others.slice(0, 6).map((o) =>
              `<li><span class="cp-q">${o.quantity}&times;</span>
-                  <a href="${esc(o.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(o.deckName)}</a></li>`).join('')}
+                  <a href="${esc(o.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(o.deckName)}</a>
+                  ${o.discount ? `<span class="cp-off">${o.discount}%</span>` : ''}</li>`).join('')}
            ${others.length > 6 ? `<li class="cp-more">+${others.length - 6} more</li>` : ''}</ul>
          </div>`
       : '<div class="cp-also cp-only">Only in this deck.</div>';

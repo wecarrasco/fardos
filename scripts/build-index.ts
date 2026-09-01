@@ -10,7 +10,7 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync, cpSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scrapeLinktree } from '../src/scrapers/linktree.js';
+import { scrapeLinktree, deckDiscount } from '../src/scrapers/linktree.js';
 import { scrapeDeck, type DeckSnapshot } from '../src/scrapers/manabox.js';
 import { sleep } from '../src/scrapers/http.js';
 import { config, linktreeUrl } from '../src/config.js';
@@ -44,17 +44,23 @@ interface IndexDeck {
   name: string;
   url: string;
   category: string | null;
+  /** Percentage off, taken from the deck's own label or its Linktree section. */
+  discount: number | null;
   updatedAt: string | null;
   cardCount: number;
   cards: IndexCard[];
 }
 
-function toIndexDeck(snapshot: DeckSnapshot, category: string | null): IndexDeck {
+function toIndexDeck(
+  snapshot: DeckSnapshot,
+  link: { category: string | null; linkText: string },
+): IndexDeck {
   return {
     id: snapshot.deckId,
     name: snapshot.name,
     url: snapshot.url,
-    category,
+    category: link.category,
+    discount: deckDiscount(link),
     updatedAt: snapshot.lastUpdated,
     cardCount: snapshot.cards.reduce((n, c) => n + c.quantity, 0),
     cards: snapshot.cards.map((c) => ({
@@ -105,7 +111,7 @@ for (const [i, link] of links.entries()) {
       log.warn(`skipping deck that is no longer available: ${link.linkText}`);
       continue;
     }
-    decks.push(toIndexDeck(snapshot, link.category));
+    decks.push(toIndexDeck(snapshot, link));
     process.stderr.write(`\r[${i + 1}/${links.length}] ${link.linkText.slice(0, 48).padEnd(50)}`);
   } catch (err) {
     // One bad deck must not lose the other sixty-two.

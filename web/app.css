@@ -211,3 +211,17 @@ footer a:hover { color: var(--link); }
   .cardpreview { animation: cp-in .12s ease-out; }
   @keyframes cp-in { from { opacity: 0; transform: translateY(4px); } }
 }
+
+/* ---- Discounts ---- */
+.chip.off {
+  color: #35c26a; border-color: #35c26a66; background: #35c26a14;
+  font-weight: 700; letter-spacing: .02em;
+}
+.cheaper {
+  margin-top: 3px; font-size: 12px; color: #35c26a;
+}
+.cheaper a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.cheaper::before { content: "\2193 "; font-weight: 700; }
+
+/* Discount shown against each deck in the preview's "also in" list. */
+.cp-off { color: #35c26a; font-size: 11px; font-weight: 700; }

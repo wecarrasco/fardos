@@ -32,6 +32,7 @@ import { normalizeCardName } from './normalize.js';
  * @property {string} name
  * @property {string} url
  * @property {string|null} category
+ * @property {number|null} [discount] percentage off, from the Linktree label
  * @property {string|null} updatedAt
  * @property {number} cardCount
  * @property {IndexCard[]} cards
@@ -41,6 +42,7 @@ import { normalizeCardName } from './normalize.js';
  * @property {string} deckName
  * @property {string} deckUrl
  * @property {string|null} category
+ * @property {number|null} discount
  * @property {string|null} deckUpdatedAt
  * @property {number} bestRank
  * @property {number} totalQuantity
@@ -120,6 +122,7 @@ export function search(index, query, opts = {}) {
         deckName: deck.name,
         deckUrl: deck.url,
         category: deck.category,
+        discount: deck.discount ?? null,
         deckUpdatedAt: deck.updatedAt,
         bestRank: matches[0].rank,
         totalQuantity: matches.reduce((n, m) => n + m.card.quantity, 0),

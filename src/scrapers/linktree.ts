@@ -20,6 +20,13 @@ export const LINKTREE_SELECTORS = {
 
 const DECK_URL_RE = /^https?:\/\/(?:www\.)?manabox\.app\/decks\/([A-Za-z0-9_-]+)/;
 
+/**
+ * The seller advertises discounts in plain text: "MARVEL - 10% OFF",
+ * "LINKS 20% de DESCUENTO", "(30% OFF)". Anything from 1-99% counts; a bare
+ * "100%" is far more likely to be marketing copy than a giveaway.
+ */
+const DISCOUNT_RE = /(?<!\d)(\d{1,2})\s*%/;
+
 export interface LinktreeDeckLink {
   /** ManaBox deck id, e.g. "AZ_RG1TNdsG5sWmkbXJ3gA". Primary key for a deck. */
   deckId: string;
@@ -89,6 +96,29 @@ export function parseLinktree(html: string): LinktreeDeckLink[] {
     log.anomaly('Linktree parse produced 0 deck links -- the page layout likely changed');
   }
   return out;
+}
+
+/**
+ * Percentage discount stated in a piece of Linktree text, or null.
+ *
+ * @param text a section heading or a link's own label
+ */
+export function parseDiscount(text: string | null | undefined): number | null {
+  const found = DISCOUNT_RE.exec(text ?? '');
+  if (!found?.[1]) return null;
+  const pct = Number(found[1]);
+  return pct > 0 && pct < 100 ? pct : null;
+}
+
+/**
+ * The discount that applies to one deck.
+ *
+ * A deck's own label wins over its section: the seller files
+ * "MARVEL : COMMONS (20% OFF)" under a heading that reads 10% OFF, and the
+ * deck-specific figure is the real one.
+ */
+export function deckDiscount(link: Pick<LinktreeDeckLink, 'linkText' | 'category'>): number | null {
+  return parseDiscount(link.linkText) ?? parseDiscount(link.category);
 }
 
 /** Fetch and parse the configured Linktree page. */

@@ -150,6 +150,40 @@ with no network involved.
 
 ---
 
+## Discounts
+
+The seller advertises discounts in the Linktree text itself — "MARVEL — 10% OFF",
+"LINKS 10% de DESCUENTO", "(20% OFF)". The build reads the percentage out of it and
+stores it on each deck, so the site can:
+
+- show the discount as a badge on every deck in the results
+- point out when the **identical printing is cheaper in another deck**
+- list each deck's discount in the card preview, best offer first
+
+That second one is the point of the feature. At the last build, **220 card entries** were
+stocked more cheaply elsewhere — the same card, same set, same collector number, same
+finish, in a deck with a bigger discount.
+
+### A deck's own label beats its section
+
+Four decks state a discount in their own name that differs from the heading they sit
+under: *MARVEL : COMMONS (20% OFF)* is filed beneath *MARVEL — 10% OFF*. The
+deck-specific figure is the real one, so `deckDiscount()` prefers it. Taking the section
+value would have understated those decks by ten points and hidden the better price.
+
+### Read, never assumed
+
+The percentages are parsed on every build rather than configured, which turned out to
+matter: between two builds the seller moved their 30% tier to 20% and both 20% tiers to
+10%. The site followed without a code change. A hardcoded table would have been quietly
+wrong the same day.
+
+Anything from 1–99% counts. A bare "100%" is read as marketing copy rather than a
+giveaway, and a section label whose only content is the discount keeps its original text
+rather than being stripped to nothing.
+
+---
+
 ## Card preview
 
 Hovering a card name (tapping it on a phone) opens a panel with the printing's picture

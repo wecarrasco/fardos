@@ -3,6 +3,7 @@ import { search, suggest } from './search.js';
 import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
+import { betterDealFor, categoryLabel } from './cards.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -101,6 +102,18 @@ let newBadgeCutoff = null;
  */
 let rendered = [];
 
+/**
+ * Note on a card row when the identical printing is cheaper in another deck.
+ * Kept to one short line: it is a nudge, not the main content of the row.
+ */
+function cheaperElsewhere(card, deck) {
+  const better = betterDealFor(index, card, { id: deck.deckId, discount: deck.discount });
+  if (!better) return '';
+  return `<div class="cheaper">${better.discount}% off in
+            <a href="${esc(better.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(better.deckName)}</a>
+            &middot; ${better.quantity} there</div>`;
+}
+
 function renderResults(data, opts = {}) {
   if (!data.decks.length) {
     resultsEl.innerHTML = '';
@@ -124,7 +137,8 @@ function renderResults(data, opts = {}) {
       <div class="deck-head">
         <div class="deck-title">
           <a href="${esc(d.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(d.deckName)}</a>
-          ${d.category ? `<span class="chip">${esc(d.category)}</span>` : ''}
+          ${d.discount ? `<span class="chip off">${d.discount}% OFF</span>` : ''}
+          ${d.category ? `<span class="chip">${esc(categoryLabel(d.category))}</span>` : ''}
         </div>
         <div class="deck-meta">
           ${d.totalQuantity} ${opts.copiesLabel ?? 'matching'} ${d.totalQuantity === 1 ? 'copy' : 'copies'}
@@ -148,6 +162,7 @@ function renderResults(data, opts = {}) {
                 ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
                 ${c.firstSeen && (opts.allNew || isNewCard(c, newBadgeCutoff)) ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
               </div>
+              ${cheaperElsewhere(c, d)}
             </td>
           </tr>`).join('')}
       </table>
