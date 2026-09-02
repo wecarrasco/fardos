@@ -239,6 +239,30 @@ rather than being stripped to nothing.
 
 ---
 
+## Filters
+
+Search results and new arrivals can be narrowed by finish, rarity, card type, set and
+discount tier.
+
+**The controls are derived from the results, not fixed.** A search for Sol Ring offers no
+"card type" filter, because every result is an Artifact and the control would do nothing.
+Each option carries the number of entries behind it, counted against the whole result so
+the numbers do not shift as choices are made.
+
+Discount filters whole decks rather than cards, since the discount belongs to the deck.
+Decks left holding nothing are dropped instead of shown empty, and the deck header's own
+copy count is recomputed to match what survived.
+
+### Not stranding the reader
+
+A filter that the next search cannot satisfy is dropped before it is applied, not after.
+Applying it first would empty the page and only then remove the control, leaving someone
+looking at no results with nothing to clear. Filters that still make sense are kept
+across searches, and a "9 of 20 shown" note makes it obvious when something is being
+hidden.
+
+---
+
 ## Card preview
 
 Hovering a card name (tapping it on a phone) opens a panel with the printing's picture
@@ -453,6 +477,7 @@ web/                    the site; copied verbatim into the build output
   arrivals.js           the New arrivals view
   cards.js              image URLs and cross-deck lookups
   decklist.js           decklist and CSV parsing, and list matching
+  filters.js            facets derived from results, and narrowing
   preview.js            the hover/tap card panel
   config.js             repo details for the update button
 scripts/

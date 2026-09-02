@@ -5,6 +5,7 @@ import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel } from './cards.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
+import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -96,6 +97,88 @@ const fmtDate = (iso) => {
 /** Cards arriving on or after this date get a NEW badge in either tab. */
 let newBadgeCutoff = null;
 
+/* ------------------------------------------------------------------ *
+ * Filters
+ * ------------------------------------------------------------------ */
+
+const filtersEl = $('filters');
+let filters = emptyFilters();
+/** The unfiltered result, kept so changing a filter need not redo the search. */
+let lastResult = null;
+/** What to call when a filter changes. */
+let rerender = () => {};
+
+/** A <select> whose first option means "no restriction". */
+function selectControl(key, anyLabel, options, current, format = (o) => o.label) {
+  if (!options.length) return '';
+  const opts = options.map((o) =>
+    `<option value="${esc(o.value)}"${String(current) === String(o.value) ? ' selected' : ''}>` +
+    `${esc(format(o))} (${o.count})</option>`).join('');
+  return `<select data-filter="${key}" class="${current !== null ? 'on' : ''}"
+                  aria-label="${esc(anyLabel)}">
+            <option value="">${esc(anyLabel)}</option>${opts}
+          </select>`;
+}
+
+function renderFilters(unfiltered, filtered, facets) {
+  const anyControl = facets.foil || facets.rarity.length || facets.typeName.length ||
+                     facets.setId.length || facets.discount.length;
+  if (!anyControl) { filtersEl.hidden = true; filtersEl.innerHTML = ''; return; }
+
+  const seg = facets.foil
+    ? `<div class="seg" role="group" aria-label="Finish">
+         ${[['all', 'All'], ['foil', `Foil (${facets.foil.foil})`], ['nonfoil', `Non-foil (${facets.foil.nonfoil})`]]
+           .map(([v, label]) =>
+             `<button type="button" data-foil="${v}" class="${filters.foil === v ? 'on' : ''}">${esc(label)}</button>`)
+           .join('')}
+       </div>`
+    : '';
+
+  filtersEl.hidden = false;
+  filtersEl.innerHTML =
+    seg +
+    selectControl('rarity', 'Any rarity', facets.rarity, filters.rarity) +
+    selectControl('typeName', 'Any type', facets.typeName, filters.typeName) +
+    selectControl('setId', 'Any set', facets.setId, filters.setId) +
+    selectControl('minDiscount', 'Any discount', facets.discount, filters.minDiscount,
+      (o) => `${o.value}% off or better`) +
+    (isFiltered(filters)
+      ? `<button type="button" class="clear">Clear filters</button>
+         <span class="count-note">${filtered.hitCount} of ${unfiltered.hitCount} shown</span>`
+      : '');
+}
+
+filtersEl.addEventListener('click', (ev) => {
+  const foil = ev.target.closest('[data-foil]');
+  if (foil) { filters.foil = foil.dataset.foil; return rerender(); }
+  if (ev.target.closest('.clear')) { filters = emptyFilters(); return rerender(); }
+});
+
+filtersEl.addEventListener('change', (ev) => {
+  const sel = ev.target.closest('[data-filter]');
+  if (!sel) return;
+  const key = sel.dataset.filter;
+  const raw = sel.value;
+  filters[key] = raw === '' ? null : (key === 'minDiscount' ? Number(raw) : raw);
+  rerender();
+});
+
+/** Filter, draw, and refresh the bar. Shared by the search and arrivals tabs. */
+function renderFiltered(result, opts, onRerender) {
+  lastResult = result;
+  rerender = onRerender;
+
+  // Prune before applying, never after. A filter the new results cannot satisfy
+  // would otherwise be applied once -- emptying the page -- and only then
+  // dropped, leaving the reader looking at nothing with no filter to clear.
+  const facets = facetsFor(result);
+  filters = pruneFilters(filters, facets);
+
+  const filtered = applyFilters(result, filters);
+  renderFilters(result, filtered, facets);
+  renderResults(filtered, opts);
+}
+
 /**
  * Cards in the current render, addressed by index. The preview maps a clicked
  * element back through this rather than reading data attributes, which keeps
@@ -119,6 +202,7 @@ function renderResults(data, opts = {}) {
   if (!data.decks.length) {
     resultsEl.innerHTML = '';
     summaryEl.hidden = true;
+    summaryEl.innerHTML = '';
     emptyEl.hidden = false;
     emptyEl.className = 'empty';
     emptyEl.textContent = opts.emptyText ?? `No deck currently lists a card matching "${data.query}".`;
@@ -175,12 +259,14 @@ function runSearch(q) {
   if (!q.trim()) {
     resultsEl.innerHTML = '';
     summaryEl.hidden = true;
+    filtersEl.hidden = true;
     emptyEl.hidden = false;
     emptyEl.className = 'empty';
     emptyEl.textContent = 'Type a card name to see which decks have it.';
     return;
   }
-  renderResults(search(index, q));
+
+  renderFiltered(search(index, q), {}, () => runSearch(q));
   $('suggestions').innerHTML = suggest(index, q, 10)
     .map((n) => `<option value="${esc(n)}">`).join('');
 }
@@ -216,6 +302,7 @@ function renderArrivals() {
 
   if (!data.available) {
     // An index published before this field existed cannot answer the question.
+    filtersEl.hidden = true;
     renderResults({ decks: [] }, {
       emptyText: 'This window needs a newer index. Press "Update now", or pick a day range.',
     });
@@ -228,7 +315,7 @@ function renderArrivals() {
     ? 'The latest update did not add any cards. Try one of the day ranges to see recent arrivals.'
     : `No cards have been added in the last ${opts.days} days.`;
 
-  renderResults(data, {
+  renderFiltered(data, {
     copiesLabel: 'new',
     allNew: true,
     emptyText,
@@ -236,7 +323,7 @@ function renderArrivals() {
       `<b>${data.printingCount}</b> new ${data.printingCount === 1 ? 'card' : 'cards'} ` +
       `(<b>${data.totalCopies}</b> ${data.totalCopies === 1 ? 'copy' : 'copies'}) ` +
       `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'}, ${windowLabel}.`,
-  });
+  }, renderArrivals);
 }
 
 /** Headline count on the tab: what the most recent update brought in. */
@@ -316,6 +403,7 @@ function renderDecklistRow(m) {
 
 function renderDecklist() {
   if (!index) return;
+  filtersEl.hidden = true;   // the list view has its own shape
 
   const { entries, skipped, format } = parseDecklist(listInput.value);
   const what = format === 'csv' ? 'CSV export' : 'list';
