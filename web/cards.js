@@ -145,3 +145,30 @@ export function categoryLabel(category) {
 
   return stripped.length >= 3 ? stripped : category;
 }
+
+/** The order MTG players expect to read a decklist in. */
+export const TYPE_ORDER = [
+  'Creature', 'Planeswalker', 'Battle', 'Artifact', 'Enchantment',
+  'Instant', 'Sorcery', 'Land', 'Other',
+];
+
+/**
+ * Sort card-type names into reading order.
+ *
+ * Fixed rather than derived from the cards present, so narrowing a deck removes
+ * sections without shuffling the ones that remain. Unrecognised types sort to
+ * the end alphabetically instead of vanishing.
+ *
+ * @param {string[]} types
+ * @returns {string[]}
+ */
+export function sortCardTypes(types) {
+  return [...types].sort((a, b) => {
+    const ia = TYPE_ORDER.indexOf(a);
+    const ib = TYPE_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}

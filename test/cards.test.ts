@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardImageUrl, scryfallPageUrl, otherDecksWithCard, totalsForName, printingKey }
+import { cardImageUrl, scryfallPageUrl, otherDecksWithCard, totalsForName, printingKey, sortCardTypes }
   from '../web/cards.js';
 
 const card = (name: string, extra: any = {}) => ({
@@ -125,4 +125,35 @@ test('printingKey separates on the fields that define a printing', () => {
   assert.notEqual(printingKey(base), printingKey(card('X', { foil: true })));
   assert.equal(printingKey(base), printingKey(card('X', { quantity: 99 })),
     'quantity is stock, not identity');
+});
+
+/* ---------------------------------------------------------------- *
+ * Card-type ordering
+ * ---------------------------------------------------------------- */
+
+test('card types sort into reading order, not the order encountered', () => {
+  assert.deepEqual(
+    sortCardTypes(['Land', 'Instant', 'Creature', 'Artifact']),
+    ['Creature', 'Artifact', 'Instant', 'Land'],
+  );
+});
+
+test('the order does not change when types drop out', () => {
+  // Narrowing a deck must remove sections without shuffling the survivors.
+  const all = sortCardTypes(['Sorcery', 'Creature', 'Land', 'Enchantment', 'Instant']);
+  const fewer = sortCardTypes(['Sorcery', 'Creature', 'Instant']);
+  assert.deepEqual(fewer, all.filter((t) => fewer.includes(t)));
+});
+
+test('unknown types go last, alphabetically, rather than disappearing', () => {
+  assert.deepEqual(
+    sortCardTypes(['Zebra', 'Creature', 'Aardvark', 'Land']),
+    ['Creature', 'Land', 'Aardvark', 'Zebra'],
+  );
+});
+
+test('sorting does not mutate its input', () => {
+  const input = ['Land', 'Creature'];
+  sortCardTypes(input);
+  assert.deepEqual(input, ['Land', 'Creature']);
 });

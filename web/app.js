@@ -3,7 +3,7 @@ import { search, suggest } from './search.js';
 import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
-import { betterDealFor, categoryLabel } from './cards.js';
+import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
 
@@ -164,7 +164,7 @@ filtersEl.addEventListener('change', (ev) => {
 });
 
 /** Filter, draw, and refresh the bar. Shared by the search and arrivals tabs. */
-function renderFiltered(result, opts, onRerender) {
+function renderFiltered(result, opts, onRerender, draw = renderResults) {
   lastResult = result;
   rerender = onRerender;
 
@@ -176,7 +176,7 @@ function renderFiltered(result, opts, onRerender) {
 
   const filtered = applyFilters(result, filters);
   renderFilters(result, filtered, facets);
-  renderResults(filtered, opts);
+  draw(filtered, opts);
 }
 
 /**
@@ -196,6 +196,39 @@ function cheaperElsewhere(card, deck) {
   return `<div class="cheaper">${better.discount}% off in
             <a href="${esc(better.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(better.deckName)}</a>
             &middot; ${better.quantity} there</div>`;
+}
+
+/**
+ * One card row. Shared by search results, new arrivals and deck browsing, so
+ * the foil and NEW badges, printing detail and cheaper-elsewhere note behave
+ * identically wherever a card appears.
+ *
+ * Registers the card in `rendered` so the preview can map the button back to
+ * it without serialising the card into the DOM.
+ */
+function cardRow(c, deck, opts = {}) {
+  const isNew = opts.allNew || isNewCard(c, newBadgeCutoff);
+  const ref = rendered.push({ card: c, deckId: deck.deckId }) - 1;
+
+  return `
+    <tr>
+      <td class="qty">${c.quantity}&times;</td>
+      <td>
+        <button type="button" class="name" data-card="${ref}"
+                aria-expanded="false" aria-haspopup="dialog"
+                title="Show card">${opts.query ? highlight(c.name, opts.query) : esc(c.name)}</button>
+        ${c.foil ? '<span class="foil">FOIL</span>' : ''}
+        ${isNew ? '<span class="new-badge">NEW</span>' : ''}
+        <div class="setinfo">
+          ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
+          ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
+          ${c.rarity ? ` &middot; ${esc(c.rarity)}` : ''}
+          ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
+          ${c.firstSeen && isNew ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
+        </div>
+        ${cheaperElsewhere(c, deck)}
+      </td>
+    </tr>`;
 }
 
 function renderResults(data, opts = {}) {
@@ -230,27 +263,7 @@ function renderResults(data, opts = {}) {
           &middot; deck updated ${esc(fmtDate(d.deckUpdatedAt))}
         </div>
       </div>
-      <table>
-        ${d.cards.map((c) => `
-          <tr>
-            <td class="qty">${c.quantity}&times;</td>
-            <td>
-              <button type="button" class="name" data-card="${rendered.push({ card: c, deckId: d.deckId }) - 1}"
-                      aria-expanded="false" aria-haspopup="dialog"
-                      title="Show card">${data.query ? highlight(c.name, data.query) : esc(c.name)}</button>
-              ${c.foil ? '<span class="foil">FOIL</span>' : ''}
-              ${opts.allNew || isNewCard(c, newBadgeCutoff) ? '<span class="new-badge">NEW</span>' : ''}
-              <div class="setinfo">
-                ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
-                ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
-                ${c.rarity ? ` &middot; ${esc(c.rarity)}` : ''}
-                ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
-                ${c.firstSeen && (opts.allNew || isNewCard(c, newBadgeCutoff)) ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
-              </div>
-              ${cheaperElsewhere(c, d)}
-            </td>
-          </tr>`).join('')}
-      </table>
+      <table>${d.cards.map((c) => cardRow(c, d, { ...opts, query: data.query })).join('')}</table>
     </section>`).join('');
 }
 
@@ -282,6 +295,7 @@ let activeTab = 'search';
 const TABS = {
   search: { tab: 'tab-search', pane: 'pane-search' },
   new:    { tab: 'tab-new',    pane: 'pane-new' },
+  browse: { tab: 'tab-browse', pane: 'pane-browse' },
   list:   { tab: 'tab-list',   pane: 'pane-list' },
 };
 
@@ -349,6 +363,7 @@ function showTab(which) {
   const url = new URL(location.href);
   url.searchParams.delete('new');
   url.searchParams.delete('list');
+  if (which !== 'browse') url.searchParams.delete('deck');
   if (which === 'new') url.searchParams.set('new', windowSelect.value);
   if (which === 'list') url.searchParams.set('list', '1');
   history.replaceState(null, '', url);
@@ -359,6 +374,7 @@ function showTab(which) {
 
   if (which === 'search') { runSearch(qInput.value); qInput.focus(); }
   else if (which === 'new') renderArrivals();
+  else if (which === 'browse') renderBrowse();
   else { renderDecklist(); listInput.focus(); }
 }
 
@@ -366,6 +382,158 @@ for (const [id, refs] of Object.entries(TABS)) {
   $(refs.tab).addEventListener('click', () => showTab(id));
 }
 windowSelect.addEventListener('change', renderArrivals);
+
+/* ------------------------------------------------------------------ *
+ * Browse
+ * ------------------------------------------------------------------ */
+
+/** Which deck is open, or null for the deck index. */
+let browseDeckId = null;
+
+/** Turn a raw index deck into the shape the shared renderers expect. */
+const asGroup = (deck) => ({
+  deckId: deck.id,
+  deckName: deck.name,
+  deckUrl: deck.url,
+  category: deck.category,
+  discount: deck.discount ?? null,
+  deckUpdatedAt: deck.updatedAt,
+  totalQuantity: deck.cardCount,
+  cards: deck.cards,
+});
+
+/** The deck index: every deck, under its Linktree section, in page order. */
+function renderBrowseList() {
+  browseDeckId = null;
+  filtersEl.hidden = true;
+  $('browse-bar').innerHTML = '';
+  summaryEl.hidden = false;
+  emptyEl.hidden = true;
+
+  const decks = index.decks;
+  const copies = decks.reduce((n, d) => n + d.cardCount, 0);
+  summaryEl.innerHTML =
+    `<b>${decks.length}</b> decks &middot; <b>${copies.toLocaleString()}</b> cards. ` +
+    `Open one to see everything in it.`;
+
+  // Decks arrive in the seller's own page order, so grouping in that order
+  // reproduces the Linktree layout people already know.
+  const sections = [];
+  for (const deck of decks) {
+    const key = deck.category ?? '';
+    const last = sections[sections.length - 1];
+    if (last && last.key === key) last.decks.push(deck);
+    else sections.push({ key, decks: [deck] });
+  }
+
+  const cutoff = arrivalCutoff(index, { days: 7 });
+
+  resultsEl.innerHTML = sections.map((sec) => {
+    const label = sec.key ? categoryLabel(sec.key) : 'Not in a section';
+    return `
+      <div class="br-section">${esc(label)}</div>
+      <div class="br-grid">${sec.decks.map((d) => {
+        const fresh = d.cards.filter((c) => isNewCard(c, cutoff)).length;
+        return `
+          <button type="button" class="br-card" data-deck="${esc(d.id)}">
+            <div class="br-name">
+              ${esc(d.name)}
+              ${d.discount ? `<span class="chip off">${d.discount}% OFF</span>` : ''}
+            </div>
+            <div class="br-meta">
+              <b>${d.cardCount.toLocaleString()}</b> cards &middot;
+              <b>${d.cards.length.toLocaleString()}</b> entries
+              ${fresh ? ` &middot; <span class="cp-off">${fresh} new</span>` : ''}
+            </div>
+            <div class="br-meta">updated ${esc(fmtDate(d.updatedAt))}</div>
+          </button>`;
+      }).join('')}</div>`;
+  }).join('');
+}
+
+/** Draw one deck's contents, grouped by card type. */
+function drawBrowseDeck(filtered, opts) {
+  const group = filtered.decks[0];
+  if (!group) {
+    resultsEl.innerHTML = '';
+    emptyEl.hidden = false;
+    emptyEl.className = 'empty';
+    emptyEl.textContent = 'Nothing in this deck matches the filters.';
+    return;
+  }
+
+  emptyEl.hidden = true;
+
+  const byType = new Map();
+  for (const c of group.cards) {
+    const k = c.typeName || 'Other';
+    byType.has(k) ? byType.get(k).push(c) : byType.set(k, [c]);
+  }
+
+  // Fixed order, so filtering removes sections without shuffling the rest.
+  const order = sortCardTypes([...byType.keys()]);
+
+  rendered = [];
+  resultsEl.innerHTML = order.map((type) => [type, byType.get(type)]).map(([type, cards]) => `
+    <div class="br-type">${esc(type)} <span>${cards.reduce((n, c) => n + c.quantity, 0)}</span></div>
+    <section class="deck"><table>
+      ${cards.map((c) => cardRow(c, group, opts)).join('')}
+    </table></section>`).join('');
+}
+
+function renderBrowseDeck(deckId) {
+  const deck = index.decks.find((d) => d.id === deckId);
+  if (!deck) return renderBrowseList();
+
+  browseDeckId = deckId;
+  const group = asGroup(deck);
+
+  $('browse-bar').innerHTML =
+    `<button type="button" class="br-back">&larr; All decks</button>`;
+
+  summaryEl.hidden = false;
+  summaryEl.innerHTML =
+    `<div class="br-head">
+       <span class="br-title">${esc(deck.name)}</span>
+       ${deck.discount ? `<span class="chip off">${deck.discount}% OFF</span>` : ''}
+       <a href="${esc(deck.url)}" target="_blank" rel="noopener noreferrer">open on ManaBox &rarr;</a>
+     </div>
+     <b>${deck.cardCount.toLocaleString()}</b> cards in
+     <b>${deck.cards.length.toLocaleString()}</b> entries &middot;
+     updated ${esc(fmtDate(deck.updatedAt))}`;
+
+  renderFiltered(
+    { deckCount: 1, hitCount: deck.cards.length, totalCopies: deck.cardCount, decks: [group] },
+    {},
+    () => renderBrowseDeck(deckId),
+    drawBrowseDeck,
+  );
+}
+
+function renderBrowse() {
+  if (!index) return;
+  browseDeckId ? renderBrowseDeck(browseDeckId) : renderBrowseList();
+
+  const url = new URL(location.href);
+  browseDeckId ? url.searchParams.set('deck', browseDeckId) : url.searchParams.delete('deck');
+  history.replaceState(null, '', url);
+}
+
+resultsEl.addEventListener('click', (ev) => {
+  const card = ev.target.closest('.br-card');
+  if (!card) return;
+  filters = emptyFilters();      // a fresh deck deserves a fresh view
+  browseDeckId = card.dataset.deck;
+  renderBrowse();
+  window.scrollTo(0, 0);
+});
+
+$('browse-bar').addEventListener('click', (ev) => {
+  if (!ev.target.closest('.br-back')) return;
+  filters = emptyFilters();
+  browseDeckId = null;
+  renderBrowse();
+});
 
 /* ------------------------------------------------------------------ *
  * Decklist
@@ -517,7 +685,9 @@ async function loadIndex() {
       if (saved) listInput.value = saved;
     } catch { /* private mode */ }
 
-    if (params.has('list')) showTab('list');
+    if (params.has('deck')) { browseDeckId = params.get('deck'); showTab('browse'); }
+    else if (params.has('browse')) showTab('browse');
+    else if (params.has('list')) showTab('list');
     else if (params.has('new')) {
       const w = params.get('new');
       if ([...windowSelect.options].some((o) => o.value === w)) windowSelect.value = w;
@@ -646,6 +816,7 @@ async function followRun(runId, startedAt) {
     renderNewCount();
     if (activeTab === 'new') renderArrivals();
     else if (activeTab === 'list') renderDecklist();
+    else if (activeTab === 'browse') renderBrowse();
     else runSearch(qInput.value);
     setTimeout(() => { progressEl.hidden = true; }, 10000);
     return;

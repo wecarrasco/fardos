@@ -17,6 +17,7 @@
       <button id="tab-new" class="tab" role="tab" aria-selected="false">
         New arrivals <span id="new-count" class="count" hidden></span>
       </button>
+      <button id="tab-browse" class="tab" role="tab" aria-selected="false">Browse</button>
       <button id="tab-list" class="tab" role="tab" aria-selected="false">Decklist</button>
     </div>
 
@@ -26,6 +27,10 @@
                spellcheck="false" list="suggestions" disabled>
         <datalist id="suggestions"></datalist>
       </div>
+    </div>
+
+    <div id="pane-browse" hidden>
+      <div id="browse-bar" class="listbar"></div>
     </div>
 
     <div id="pane-list" hidden>

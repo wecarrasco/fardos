@@ -239,6 +239,33 @@ rather than being stripped to nothing.
 
 ---
 
+## Browse
+
+Until now every route into the catalogue needed you to already know what you wanted: a
+search box or a pasted list. The **Browse** tab is the way in for people who just want to
+look.
+
+It lists all 63 decks under their Linktree sections, in the seller's own page order, each
+showing its discount, how many cards and entries it holds, how many arrived recently, and
+when it last changed. Opening one shows its full contents grouped by card type, with a
+link out to ManaBox.
+
+Deck pages are deep-linkable as `?deck=<id>`, and the filters, card preview and
+cheaper-elsewhere notes all work inside a deck exactly as they do in search results.
+
+### Card types keep a fixed order
+
+Sections are ordered Creature, Planeswalker, Battle, Artifact, Enchantment, Instant,
+Sorcery, Land, Other — not by how many of each the deck happens to hold. Deriving the
+order from the cards present meant that filtering to foils reshuffled the sections
+underneath the reader. Filtering now removes sections without moving the rest, and a type
+we do not recognise sorts to the end rather than disappearing.
+
+Filters reset when you open a deck or go back, since a filter chosen for one deck rarely
+means anything in the next.
+
+---
+
 ## Filters
 
 Search results and new arrivals can be narrowed by finish, rarity, card type, set and
