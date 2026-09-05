@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTG Card Finder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#127183;</text></svg>">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>MTG Card Finder</h1>
+    <p class="sub">Search every ManaBox deck listed on the seller's Linktree.</p>
+    <div class="tabs" role="tablist">
+      <button id="tab-search" class="tab is-active" role="tab" aria-selected="true">Search</button>
+      <button id="tab-new" class="tab" role="tab" aria-selected="false">
+        New arrivals <span id="new-count" class="count" hidden></span>
+      </button>
+      <button id="tab-browse" class="tab" role="tab" aria-selected="false">Browse</button>
+      <button id="tab-list" class="tab" role="tab" aria-selected="false">Decklist</button>
+    </div>
+
+    <div id="pane-search">
+      <div class="searchbar">
+        <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
+               spellcheck="false" list="suggestions" disabled>
+        <datalist id="suggestions"></datalist>
+      </div>
+    </div>
+
+    <div id="pane-browse" hidden>
+      <div id="browse-bar" class="listbar"></div>
+    </div>
+
+    <div id="pane-list" hidden>
+      <textarea id="decklist" rows="7" spellcheck="false"
+        placeholder="Paste a ManaBox or Moxfield CSV export, or a plain list:&#10;&#10;4 Lightning Bolt&#10;1 Sol Ring (SLD) 2467&#10;2 Ocelot Pride *F*&#10;Seedborn Muse"></textarea>
+      <div class="listbar">
+        <button id="check-list" type="button" class="btn">Check list</button>
+        <button id="clear-list" type="button" class="btn secondary">Clear</button>
+        <span id="list-note" class="status"></span>
+      </div>
+    </div>
+
+    <div id="pane-new" hidden>
+      <div class="windowpick">
+        <label for="window">Showing cards added</label>
+        <select id="window" class="btn secondary">
+          <option value="last">in the last update</option>
+          <option value="7" selected>in the last 7 days</option>
+          <option value="30">in the last 30 days</option>
+          <option value="90">in the last 90 days</option>
+        </select>
+      </div>
+    </div>
+    <div class="statusrow">
+      <div id="index-status" class="status">Loading card index...</div>
+      <button id="update-btn" type="button" class="btn" disabled>Update now</button>
+    </div>
+    <div id="progress" class="progress" hidden>
+      <div class="bar"><span id="bar-fill"></span></div>
+      <div id="progress-text" class="progress-text"></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="filters" class="filters" hidden></div>
+  <div id="summary" class="summary" hidden></div>
+  <div id="results"></div>
+  <div id="empty" class="loading">Loading card index...</div>
+</main>
+
+<footer class="wrap">
+  <span id="foot"></span>
+  <a id="repo-link" href="#" target="_blank" rel="noopener noreferrer">source</a>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
