@@ -11,7 +11,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, cpSync } from 'node
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scrapeLinktree, deckDiscount } from '../src/scrapers/linktree.js';
-import { scrapeDeck, type DeckSnapshot } from '../src/scrapers/manabox.js';
+import { scrapeDeck, PRICE_VENDORS, type DeckSnapshot } from '../src/scrapers/manabox.js';
 import { sleep } from '../src/scrapers/http.js';
 import { config, linktreeUrl } from '../src/config.js';
 import { log } from '../src/logger.js';
@@ -46,6 +46,8 @@ interface IndexCard {
   collectorNumber: string | null;
   rarity: string | null;
   typeName: string;
+  /** Market reference price, absent when the vendor does not list one. */
+  price?: number;
 }
 
 interface IndexDeck {
@@ -81,6 +83,9 @@ function toIndexDeck(
       collectorNumber: c.collectorNumber,
       rarity: c.rarity,
       typeName: c.typeName,
+      // Omitted rather than null: most tokens have no price, and absent keys
+      // cost nothing in the published file.
+      ...(c.price === null ? {} : { price: c.price }),
     })),
   };
 }
@@ -135,7 +140,7 @@ let gone = 0;
 for (const [i, link] of links.entries()) {
   if (i > 0) await sleep(config.fetchDelayMs);
   try {
-    const snapshot = await scrapeDeck(link.deckId);
+    const snapshot = await scrapeDeck(link.deckId, config.priceVendor);
     if (!snapshot) {
       gone++;
       log.warn(`skipping deck that is no longer available: ${link.linkText}`);
@@ -179,6 +184,15 @@ const index = {
    */
   lastUpdate: { newPrintings: arrivedKeys },
   source: linktreeUrl(),
+  /**
+   * Where the prices come from. Published so the site can name the vendor
+   * rather than presenting a bare number as if it were the shop's own.
+   */
+  priceSource: {
+    vendor: config.priceVendor,
+    label: PRICE_VENDORS[config.priceVendor].label,
+    currency: PRICE_VENDORS[config.priceVendor].currency,
+  },
   stats: {
     decks: decks.length, entries, copies, names,
     newPrintings: arrivedKeys.length, skipped: gone, failed,

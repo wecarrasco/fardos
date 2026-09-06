@@ -4,6 +4,7 @@ import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
+import { formatPrice, describeTotal } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
 
@@ -227,9 +228,25 @@ function cardRow(c, deck, opts = {}) {
           ${c.typeName ? ` &middot; ${esc(c.typeName)}` : ''}
           ${c.firstSeen && isNew ? ` &middot; <span class="arrived">added ${esc(fmtDate(c.firstSeen))}</span>` : ''}
         </div>
+        ${priceNote(c)}
         ${cheaperElsewhere(c, deck)}
       </td>
     </tr>`;
+}
+
+/**
+ * Reference price for one card.
+ *
+ * Always shows the vendor's name. A bare figure next to a discount badge would
+ * read as the seller's asking price, which it is not.
+ */
+function priceNote(card) {
+  const money = formatPrice(card.price, index?.priceSource);
+  if (!money) return '';
+  const vendor = index?.priceSource?.label ?? 'market';
+  return `<div class="price" title="Market reference price from ${esc(vendor)}, not the seller's price">
+            ${esc(money)} <span class="price-src">${esc(vendor)}</span>
+          </div>`;
 }
 
 function renderResults(data, opts = {}) {
@@ -523,7 +540,11 @@ function renderBrowseDeck(deckId) {
      </div>
      <b>${deck.cardCount.toLocaleString()}</b> cards in
      <b>${deck.cards.length.toLocaleString()}</b> entries &middot;
-     updated ${esc(fmtDate(deck.updatedAt))}`;
+     updated ${esc(fmtDate(deck.updatedAt))}
+     ${(() => {
+       const t = describeTotal(deck.cards, index?.priceSource);
+       return t ? `<div class="price-total">Reference value ${esc(t)}. Not the seller's price.</div>` : '';
+     })()}`;
 
   renderFiltered(
     { deckCount: 1, hitCount: deck.cards.length, totalCopies: deck.cardCount, decks: [group] },
@@ -615,9 +636,25 @@ function renderDecklist() {
   const { matches, summary } = matchDecklist(index, entries);
   emptyEl.hidden = true;
   summaryEl.hidden = false;
+  // Value of what can actually be supplied: the cheapest source for each card,
+  // capped at the number asked for. Counting every source would inflate it.
+  const supplied = matches.flatMap((m) => {
+    let left = Math.min(m.wanted, m.available);
+    const take = [];
+    for (const s of m.sources) {
+      if (left <= 0) break;
+      const n = Math.min(left, s.quantity);
+      take.push({ price: s.card.price, quantity: n });
+      left -= n;
+    }
+    return take;
+  });
+  const value = describeTotal(supplied, index?.priceSource);
+
   summaryEl.innerHTML =
     `<b>${summary.foundCopies}</b> of <b>${summary.wantedCopies}</b> copies available ` +
-    `across <b>${summary.lines}</b> ${summary.lines === 1 ? 'card' : 'cards'}.`;
+    `across <b>${summary.lines}</b> ${summary.lines === 1 ? 'card' : 'cards'}.` +
+    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '');
 
   const missing = matches.filter((m) => m.status === 'missing');
 

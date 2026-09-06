@@ -205,6 +205,48 @@ without reaching for the button.
 
 ---
 
+## Prices
+
+Cards carry a **market reference price**, taken from ManaBox's own pricing data. Coverage
+is 100% of non-token cards; tokens are largely unpriced and simply show nothing.
+
+### These are not the seller's prices
+
+That distinction is the whole design. A bare figure sitting next to a "20% OFF" badge
+would read as "this costs $7.57, less 20%", and nothing here supports that reading — we
+do not know what this shop charges or what it prices against.
+
+So every figure names its source, everywhere it appears:
+
+```
+$7.57 TCGplayer
+Reference value $954.44 at TCGplayer. Not the seller's price.
+```
+
+No arithmetic is done against the discount, and no total is presented as an asking price.
+The number is there to help someone judge whether a card is worth asking about.
+
+### Choices behind it
+
+**TCGplayer by default**, set by `PRICE_VENDOR`. It quotes USD, which suits a Honduran
+seller better than Cardmarket's EUR, and it prices every non-token card in this
+catalogue. `cardKingdom`, `manapool`, `starcitygames` and `cardmarket` are also available.
+
+**Cardhoarder is deliberately excluded.** It quotes MTGO event tickets rather than money,
+so a figure from it would render as currency while meaning something else entirely.
+
+**An unpriced card shows nothing, not `$0.00`**, which would read as free. Totals report
+how many cards they could not price rather than quietly counting them as zero, because a
+partial total that looks complete is worse than an honest one.
+
+**Decklist totals count what can actually be supplied** — the cheapest source for each
+card, capped at the quantity asked for. Summing every source would inflate the figure.
+
+Storing one price per entry costs about 15 KB gzipped: prices are rounded to cents, and
+unpriced cards omit the field entirely rather than carrying a null.
+
+---
+
 ## Discounts
 
 The seller advertises discounts in the Linktree text itself — "MARVEL — 10% OFF",
@@ -530,6 +572,7 @@ web/                    the site; copied verbatim into the build output
   normalize.js          card-name folding, shared by build and browser
   arrivals.js           the New arrivals view
   cards.js              image URLs and cross-deck lookups
+  prices.js             reference-price formatting and totals
   decklist.js           decklist and CSV parsing, and list matching
   filters.js            facets derived from results, and narrowing
   preview.js            the hover/tap card panel

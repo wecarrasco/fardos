@@ -49,6 +49,26 @@ const CARD_TYPE_NAMES: Record<number, string> = {
 export const cardTypeName = (t: unknown): string =>
   typeof t === 'number' ? (CARD_TYPE_NAMES[t] ?? `Other (${t})`) : 'Other';
 
+/**
+ * Vendors ManaBox carries a price for, with the currency each quotes in.
+ *
+ * These are market reference prices from third parties, not the seller's own
+ * prices -- nothing here says what this shop charges.
+ *
+ * Cardhoarder is deliberately absent: it quotes MTGO event tickets rather than
+ * money, so mixing it in would produce a number that looks like currency and
+ * is not.
+ */
+export const PRICE_VENDORS = {
+  tcgplayer: { label: 'TCGplayer', currency: 'USD' },
+  cardKingdom: { label: 'Card Kingdom', currency: 'USD' },
+  manapool: { label: 'Mana Pool', currency: 'USD' },
+  starcitygames: { label: 'Star City Games', currency: 'USD' },
+  cardmarket: { label: 'Cardmarket', currency: 'EUR' },
+} as const;
+
+export type PriceVendor = keyof typeof PRICE_VENDORS;
+
 export interface DeckCard {
   /** Stable per-deck entry id. Distinguishes two printings of the same card. */
   internalId: number | null;
@@ -61,6 +81,8 @@ export interface DeckCard {
   rarity: string | null;
   typeName: string;
   manaValue: number | null;
+  /** Market reference price from the configured vendor, or null. */
+  price: number | null;
 }
 
 export interface DeckSnapshot {
@@ -122,7 +144,19 @@ function extractDeckPayload($: cheerio.CheerioAPI): Record<string, unknown> | nu
   return null;
 }
 
-function cardsFromPayload(deck: Record<string, unknown>): DeckCard[] {
+/**
+ * Pull one vendor's price out of a card's pricing block.
+ *
+ * Rounded to cents: the payload carries full float precision, which is noise
+ * for a reference figure and costs bytes in the published index.
+ */
+function vendorPrice(pricing: unknown, vendor: PriceVendor): number | null {
+  const entry = (pricing as Record<string, unknown> | null)?.[vendor];
+  const value = (entry as Record<string, unknown> | null)?.['value'];
+  return typeof value === 'number' && value > 0 ? Math.round(value * 100) / 100 : null;
+}
+
+function cardsFromPayload(deck: Record<string, unknown>, vendor: PriceVendor): DeckCard[] {
   const raw = (deck['cards'] ?? []) as Record<string, unknown>[];
   return raw.map((c) => ({
     internalId: num(c['internalId']),
@@ -136,6 +170,7 @@ function cardsFromPayload(deck: Record<string, unknown>): DeckCard[] {
     rarity: str(c['rarity']),
     typeName: cardTypeName(c['type']),
     manaValue: num(c['manaValue']),
+    price: vendorPrice(c['pricing'], vendor),
   }));
 }
 
@@ -167,6 +202,7 @@ function cardsFromDom($: cheerio.CheerioAPI): DeckCard[] {
       rarity: null,
       typeName: 'Unknown',
       manaValue: null,
+      price: null,
     });
   });
 
@@ -178,7 +214,11 @@ function cardsFromDom($: cheerio.CheerioAPI): DeckCard[] {
  * ------------------------------------------------------------------ */
 
 /** Parse a ManaBox deck page. Pure: HTML in, snapshot out. */
-export function parseDeckPage(html: string, deckId: string): DeckSnapshot {
+export function parseDeckPage(
+  html: string,
+  deckId: string,
+  vendor: PriceVendor = 'tcgplayer',
+): DeckSnapshot {
   const $ = cheerio.load(html);
   const url = `https://manabox.app/decks/${deckId}`;
 
@@ -201,7 +241,7 @@ export function parseDeckPage(html: string, deckId: string): DeckSnapshot {
       str(payload['name']) ?? ($(MANABOX_SELECTORS.deckTitle).first().text().trim() || deckId);
     const edit = num(payload['editDate']);
     lastUpdated = edit ? new Date(edit).toISOString() : null;
-    cards = cardsFromPayload(payload);
+    cards = cardsFromPayload(payload, vendor);
   } else {
     log.anomaly(`no deck JSON payload found -- falling back to DOM parsing`, { deckId });
     name = $(MANABOX_SELECTORS.deckTitle).first().text().trim() || deckId;
@@ -226,10 +266,13 @@ export function parseDeckPage(html: string, deckId: string): DeckSnapshot {
 }
 
 /** Fetch and parse one deck. Returns null when the deck is gone (404/410). */
-export async function scrapeDeck(deckId: string): Promise<DeckSnapshot | null> {
+export async function scrapeDeck(
+  deckId: string,
+  vendor: PriceVendor = 'tcgplayer',
+): Promise<DeckSnapshot | null> {
   const url = `https://manabox.app/decks/${deckId}`;
   try {
-    return parseDeckPage(await fetchHtml(url), deckId);
+    return parseDeckPage(await fetchHtml(url), deckId, vendor);
   } catch (err) {
     if (err instanceof HttpError) {
       log.warn(`deck is gone (HTTP ${err.status}), marking inactive`, { deckId });

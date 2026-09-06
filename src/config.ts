@@ -5,6 +5,15 @@ export const config = {
   /** Linktree username to scrape. Change this to point the app at a different seller. */
   linktreeUsername: process.env.LINKTREE_USERNAME ?? 'ChelitoSAF',
 
+  /**
+   * Which vendor's market price to publish. These are third-party reference
+   * prices, never the seller's own. TCGplayer quotes USD and covers every
+   * non-token card in this catalogue; Cardmarket quotes EUR.
+   * One of: tcgplayer, cardKingdom, manapool, starcitygames, cardmarket.
+   */
+  priceVendor: (process.env.PRICE_VENDOR ?? 'tcgplayer') as
+    'tcgplayer' | 'cardKingdom' | 'manapool' | 'starcitygames' | 'cardmarket',
+
   /** Politeness: milliseconds to wait between consecutive deck-page fetches. */
   fetchDelayMs: Number(process.env.FETCH_DELAY_MS ?? 1200),
 

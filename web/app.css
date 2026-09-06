@@ -353,3 +353,11 @@ footer a:hover { color: var(--link); }
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Reference prices ---- */
+.price { margin-top: 3px; font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.price-src { color: var(--muted); font-size: 11.5px; font-variant-numeric: normal; }
+.price-total { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.cp-price { margin-top: 8px; font-size: 13px; }
+.cp-price b { font-variant-numeric: tabular-nums; }
+.cp-price span { color: var(--muted); font-size: 11.5px; }

@@ -1,4 +1,5 @@
 import { cardImageUrl, scryfallPageUrl, otherDecksWithCard, totalsForName } from './cards.js';
+import { formatPrice } from './prices.js';
 
 /**
  * Floating card preview.
@@ -89,6 +90,13 @@ export function createPreview(getIndex) {
           ${card.rarity ? esc(card.rarity) : ''}${card.rarity && card.typeName ? ' &middot; ' : ''}${esc(card.typeName ?? '')}
         </div>
         <div class="cp-here"><b>${card.quantity}</b> in this deck</div>
+        ${(() => {
+          const money = formatPrice(card.price, index?.priceSource);
+          if (!money) return '';
+          const vendor = index?.priceSource?.label ?? 'market';
+          return `<div class="cp-price"><b>${esc(money)}</b>
+                    <span>at ${esc(vendor)} &middot; not the seller's price</span></div>`;
+        })()}
         ${nameTotal}
         ${elsewhere}
         ${page ? `<a class="cp-link" href="${esc(page)}" target="_blank" rel="noopener noreferrer">View on Scryfall &rarr;</a>` : ''}
