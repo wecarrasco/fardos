@@ -1,5 +1,5 @@
 import { cardImageUrl, scryfallPageUrl, otherDecksWithCard, totalsForName } from './cards.js';
-import { formatPrice } from './prices.js';
+import { cardPrice, formatPrice } from './prices.js';
 
 /**
  * Floating card preview.
@@ -92,11 +92,21 @@ export function createPreview(getIndex) {
         </div>
         <div class="cp-here"><b>${card.quantity}</b> in this deck</div>
         ${(() => {
-          const money = formatPrice(card.price, index?.priceSource);
-          if (!money) return '';
-          const vendor = index?.priceSource?.label ?? 'market';
-          return `<div class="cp-price"><b>${esc(money)}</b>
-                    <span>at ${esc(vendor)} &middot; not the seller's price</span></div>`;
+          // One line per vendor. The panel has room the result row does not,
+          // so the two figures stack and line up rather than running together.
+          const rows = (index?.priceSources ?? [])
+            .map((source) => {
+              const money = formatPrice(cardPrice(card, source), source);
+              return money
+                ? `<div class="cp-price-row"><b>${esc(money)}</b>
+                     <span>${esc(source.label)}</span></div>`
+                : '';
+            })
+            .filter(Boolean);
+          if (!rows.length) return '';
+          return `<div class="cp-price">${rows.join('')}
+                    <div class="cp-price-note">market reference &middot; not the seller's price</div>
+                  </div>`;
         })()}
         ${nameTotal}
         ${elsewhere}

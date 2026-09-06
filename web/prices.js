@@ -9,7 +9,7 @@
 
 /**
  * @typedef {{vendor: string, label: string, currency: string}} PriceSource
- * @typedef {import('./search.js').IndexCard} IndexCard
+ * @typedef {{prices?: Record<string, number>, quantity?: number}} Priced
  */
 
 /** Formatters are expensive to build, so keep one per currency. */
@@ -41,22 +41,39 @@ export function formatPrice(amount, source) {
 }
 
 /**
- * Total reference value of a set of cards, counting quantities.
+ * One vendor's price for one card, or null when that vendor does not list it.
  *
- * Cards the vendor does not price are reported separately rather than counted
+ * Coverage differs between vendors -- one may price a card the other skips --
+ * so this is asked per vendor rather than once per card.
+ *
+ * @param {Priced|null|undefined} card
+ * @param {PriceSource|null|undefined} source
+ * @returns {number|null}
+ */
+export function cardPrice(card, source) {
+  const v = source?.vendor ? card?.prices?.[source.vendor] : undefined;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+}
+
+/**
+ * Total reference value of a set of cards from one vendor, counting quantities.
+ *
+ * Cards that vendor does not price are reported separately rather than counted
  * as zero, because a total that silently omits them reads as complete.
  *
- * @param {{price?: number, quantity?: number}[] | null | undefined} cards
+ * @param {Priced[] | null | undefined} cards
+ * @param {PriceSource|null|undefined} source
  * @returns {{total: number, priced: number, unpriced: number}}
  */
-export function referenceTotal(cards) {
+export function referenceTotal(cards, source) {
   let total = 0;
   let priced = 0;
   let unpriced = 0;
 
   for (const c of cards ?? []) {
-    if (typeof c.price === 'number' && c.price >= 0) {
-      total += c.price * (c.quantity ?? 1);
+    const p = cardPrice(c, source);
+    if (p !== null) {
+      total += p * (c.quantity ?? 1);
       priced++;
     } else {
       unpriced++;
@@ -66,18 +83,33 @@ export function referenceTotal(cards) {
 }
 
 /**
- * A total phrased so it cannot be mistaken for the seller's asking price.
+ * Totals across every published vendor, phrased so they cannot be mistaken for
+ * the seller's asking price.
  *
- * @param {{price?: number, quantity?: number}[] | null | undefined} cards
- * @param {PriceSource|null|undefined} source
+ * Each vendor's gaps are its own, so the count of unpriced cards is stated per
+ * vendor when they disagree and once at the end when they do not -- repeating
+ * an identical figure for every vendor is noise.
+ *
+ * @param {Priced[] | null | undefined} cards
+ * @param {PriceSource[]|null|undefined} sources
  * @returns {string|null}
  */
-export function describeTotal(cards, source) {
-  const { total, priced, unpriced } = referenceTotal(cards);
-  if (!priced) return null;
+export function describeTotals(cards, sources) {
+  const parts = [];
 
-  const money = formatPrice(total, source);
-  const vendor = source?.label ?? 'market';
-  const caveat = unpriced ? `, ${unpriced} unpriced` : '';
-  return `${money} at ${vendor}${caveat}`;
+  for (const source of sources ?? []) {
+    const { total, priced, unpriced } = referenceTotal(cards, source);
+    if (!priced) continue;
+    parts.push({ text: `${formatPrice(total, source)} at ${source.label}`, unpriced });
+  }
+  if (!parts.length) return null;
+
+  const shared = parts.every((p) => p.unpriced === parts[0].unpriced);
+  if (shared) {
+    const caveat = parts[0].unpriced ? `, ${parts[0].unpriced} unpriced` : '';
+    return parts.map((p) => p.text).join(' \u00b7 ') + caveat;
+  }
+  return parts
+    .map((p) => p.text + (p.unpriced ? ` (${p.unpriced} unpriced)` : ''))
+    .join(' \u00b7 ');
 }

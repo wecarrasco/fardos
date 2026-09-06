@@ -1,12 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatPrice, referenceTotal, describeTotal } from '../web/prices.js';
+import { cardPrice, formatPrice, referenceTotal, describeTotals } from '../web/prices.js';
 import { parseDeckPage, PRICE_VENDORS } from '../src/scrapers/manabox.js';
 import { readFixture, FIXTURES } from './fixture-manifest.js';
 
 const USD = { vendor: 'tcgplayer', label: 'TCGplayer', currency: 'USD' };
+const CK = { vendor: 'cardKingdom', label: 'Card Kingdom', currency: 'USD' };
 const EUR = { vendor: 'cardmarket', label: 'Cardmarket', currency: 'EUR' };
-const card = (price?: number, quantity = 1) => ({ name: 'X', quantity, ...(price === undefined ? {} : { price }) });
+
+/** A card priced by whichever vendors are named. */
+const card = (prices: Record<string, number>, quantity = 1) => ({ name: 'X', quantity, prices });
+const tcg = (price?: number, quantity = 1) =>
+  card(price === undefined ? {} : { tcgplayer: price }, quantity);
 
 /* ---------------------------------------------------------------- *
  * Formatting
@@ -34,17 +39,46 @@ test('an unknown currency degrades instead of blanking the page', () => {
 });
 
 /* ---------------------------------------------------------------- *
+ * Reading one vendor's price
+ * ---------------------------------------------------------------- */
+
+test('each vendor is read independently', () => {
+  const c = card({ tcgplayer: 1.5, cardKingdom: 4 });
+  assert.equal(cardPrice(c, USD), 1.5);
+  assert.equal(cardPrice(c, CK), 4);
+});
+
+test('a vendor that does not list the card yields null', () => {
+  // Coverage differs between vendors, so this is the normal case, not an error.
+  const c = card({ cardKingdom: 4 });
+  assert.equal(cardPrice(c, USD), null);
+  assert.equal(cardPrice(c, CK), 4);
+});
+
+test('a card with no prices at all is handled', () => {
+  for (const bad of [{ name: 'X', quantity: 1 }, null, undefined]) {
+    assert.equal(cardPrice(bad as any, USD), null);
+  }
+});
+
+/* ---------------------------------------------------------------- *
  * Totals
  * ---------------------------------------------------------------- */
 
 test('totals multiply by quantity', () => {
-  assert.deepEqual(referenceTotal([card(2.5, 4), card(1, 2)]),
+  assert.deepEqual(referenceTotal([tcg(2.5, 4), tcg(1, 2)], USD),
     { total: 12, priced: 2, unpriced: 0 });
+});
+
+test('totals are per vendor, not shared', () => {
+  const cards = [card({ tcgplayer: 1, cardKingdom: 3 }, 2)];
+  assert.equal(referenceTotal(cards, USD).total, 2);
+  assert.equal(referenceTotal(cards, CK).total, 6);
 });
 
 test('unpriced cards are reported, not counted as zero', () => {
   // Counting them as zero would present a partial total as if complete.
-  const t = referenceTotal([card(10, 1), card(undefined, 5), card(undefined, 1)]);
+  const t = referenceTotal([tcg(10, 1), tcg(undefined, 5), tcg(undefined, 1)], USD);
   assert.equal(t.total, 10);
   assert.equal(t.priced, 1);
   assert.equal(t.unpriced, 2);
@@ -52,33 +86,61 @@ test('unpriced cards are reported, not counted as zero', () => {
 
 test('an empty or missing list totals to nothing', () => {
   for (const input of [[], null, undefined]) {
-    assert.deepEqual(referenceTotal(input as any), { total: 0, priced: 0, unpriced: 0 });
+    assert.deepEqual(referenceTotal(input as any, USD), { total: 0, priced: 0, unpriced: 0 });
   }
 });
 
 test('totals round to cents rather than drifting', () => {
-  assert.equal(referenceTotal([card(0.1, 3)]).total, 0.3);
+  assert.equal(referenceTotal([tcg(0.1, 3)], USD).total, 0.3);
 });
 
 /* ---------------------------------------------------------------- *
  * Wording
  * ---------------------------------------------------------------- */
 
-test('a total always names the vendor it came from', () => {
-  // The number must never stand alone; it is not this shop's price.
-  const text = describeTotal([card(10, 2)], USD)!;
+test('a total names every vendor it came from', () => {
+  // No number may stand alone; none of them is this shop's price.
+  const text = describeTotals([card({ tcgplayer: 10, cardKingdom: 25 }, 2)], [USD, CK])!;
   assert.match(text, /TCGplayer/);
+  assert.match(text, /Card Kingdom/);
   assert.match(text, /20\.00/);
+  assert.match(text, /50\.00/);
 });
 
-test('a total says how many cards it could not price', () => {
-  assert.match(describeTotal([card(10), card(undefined)], USD)!, /1 unpriced/);
-  assert.ok(!describeTotal([card(10)], USD)!.includes('unpriced'));
+test('vendors appear in the order they were published', () => {
+  const cards = [card({ tcgplayer: 1, cardKingdom: 2 })];
+  assert.ok(describeTotals(cards, [USD, CK])!.indexOf('TCGplayer') <
+            describeTotals(cards, [USD, CK])!.indexOf('Card Kingdom'));
+  assert.ok(describeTotals(cards, [CK, USD])!.indexOf('Card Kingdom') <
+            describeTotals(cards, [CK, USD])!.indexOf('TCGplayer'));
+});
+
+test('an identical gap is stated once, not repeated per vendor', () => {
+  const cards = [card({ tcgplayer: 10, cardKingdom: 20 }), card({})];
+  const text = describeTotals(cards, [USD, CK])!;
+  assert.equal(text.match(/unpriced/g)!.length, 1);
+  assert.match(text, /1 unpriced/);
+});
+
+test('gaps that differ are stated per vendor', () => {
+  // Card Kingdom prices a card TCGplayer skips, so one total is more complete
+  // than the other and saying "1 unpriced" once would misdescribe both.
+  const cards = [card({ tcgplayer: 10, cardKingdom: 20 }), card({ cardKingdom: 5 })];
+  const text = describeTotals(cards, [USD, CK])!;
+  assert.match(text, /TCGplayer \(1 unpriced\)/);
+  assert.ok(!/Card Kingdom \(\d+ unpriced\)/.test(text));
+});
+
+test('a vendor with nothing priced is dropped rather than shown empty', () => {
+  const text = describeTotals([card({ cardKingdom: 5 })], [USD, CK])!;
+  assert.ok(!text.includes('TCGplayer'));
+  assert.match(text, /Card Kingdom/);
 });
 
 test('nothing priced yields no total at all', () => {
-  assert.equal(describeTotal([card(undefined), card(undefined)], USD), null);
-  assert.equal(describeTotal([], USD), null);
+  assert.equal(describeTotals([card({}), card({})], [USD, CK]), null);
+  assert.equal(describeTotals([], [USD]), null);
+  assert.equal(describeTotals([tcg(5)], []), null);
 });
 
 /* ---------------------------------------------------------------- *
@@ -86,39 +148,50 @@ test('nothing priced yields no total at all', () => {
  * ---------------------------------------------------------------- */
 
 test('prices are read from the deck payload', () => {
-  const deck = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId, 'tcgplayer');
-  const priced = deck.cards.filter((c) => typeof c.price === 'number');
+  const deck = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId, ['tcgplayer']);
+  const priced = deck.cards.filter((c) => typeof c.prices.tcgplayer === 'number');
 
   assert.ok(priced.length > 0, 'the saved page should carry prices');
-  assert.ok(priced.every((c) => c.price! > 0));
+  assert.ok(priced.every((c) => c.prices.tcgplayer! > 0));
   // Rounded to cents. Compared as strings, because 12.61 * 100 is not exactly
   // 1261 in binary floating point and the naive check fails on valid input.
-  assert.ok(priced.every((c) => /^\d+(\.\d{1,2})?$/.test(String(c.price))),
+  const cents = (c: { prices: { tcgplayer?: number } }) =>
+    /^\d+(\.\d{1,2})?$/.test(String(c.prices.tcgplayer));
+  assert.ok(priced.every(cents),
     'prices should carry at most two decimals: ' +
-    priced.filter((c) => !/^\d+(\.\d{1,2})?$/.test(String(c.price))).slice(0, 3)
-      .map((c) => `${c.name}=${c.price}`).join(', '));
+    priced.filter((c) => !cents(c)).slice(0, 3)
+      .map((c) => `${c.name}=${c.prices.tcgplayer}`).join(', '));
 });
 
-test('choosing another vendor changes the figures', () => {
-  const tcg = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId, 'tcgplayer');
-  const cm = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId, 'cardmarket');
+test('several vendors are read in one pass', () => {
+  const deck = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId,
+    ['tcgplayer', 'cardKingdom']);
+  const both = deck.cards.filter((c) => c.prices.tcgplayer != null && c.prices.cardKingdom != null);
 
-  const differs = tcg.cards.some((c, i) => c.price !== cm.cards[i]!.price);
-  assert.ok(differs, 'two vendors should not agree on every card');
+  assert.ok(both.length > 0, 'the saved page should carry both vendors');
+  assert.ok(both.some((c) => c.prices.tcgplayer !== c.prices.cardKingdom),
+    'two vendors should not agree on every card');
 });
 
-test('a card the vendor does not list has no price, not a zero', () => {
-  const deck = parseDeckPage(readFixture(FIXTURES.tokens.file), FIXTURES.tokens.deckId, 'tcgplayer');
-  const unpriced = deck.cards.filter((c) => c.price === null);
+test('only the vendors asked for are stored', () => {
+  // Publishing an unrequested vendor would quietly grow the index.
+  const deck = parseDeckPage(readFixture(FIXTURES.mixed.file), FIXTURES.mixed.deckId, ['cardmarket']);
+  assert.ok(deck.cards.every((c) => Object.keys(c.prices).every((k) => k === 'cardmarket')));
+  assert.ok(deck.cards.some((c) => c.prices.cardmarket != null));
+});
+
+test('a card the vendor does not list has no key, not a zero', () => {
+  const deck = parseDeckPage(readFixture(FIXTURES.tokens.file), FIXTURES.tokens.deckId, ['tcgplayer']);
+  const unpriced = deck.cards.filter((c) => c.prices.tcgplayer === undefined);
   assert.ok(unpriced.length > 0, 'tokens are largely unpriced');
-  assert.ok(deck.cards.every((c) => c.price === null || c.price > 0));
+  assert.ok(deck.cards.every((c) => c.prices.tcgplayer === undefined || c.prices.tcgplayer > 0));
 });
 
 test('the DOM fallback yields no prices rather than wrong ones', () => {
   const html = readFixture(FIXTURES.mixed.file).replace(/props="[^"]*"/g, 'props=""');
-  const deck = parseDeckPage(html, FIXTURES.mixed.deckId, 'tcgplayer');
+  const deck = parseDeckPage(html, FIXTURES.mixed.deckId, ['tcgplayer', 'cardKingdom']);
   assert.ok(deck.cards.length > 0);
-  assert.ok(deck.cards.every((c) => c.price === null));
+  assert.ok(deck.cards.every((c) => Object.keys(c.prices).length === 0));
 });
 
 test('cardhoarder is not offered as a vendor', () => {

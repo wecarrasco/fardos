@@ -46,8 +46,8 @@ interface IndexCard {
   collectorNumber: string | null;
   rarity: string | null;
   typeName: string;
-  /** Market reference price, absent when the vendor does not list one. */
-  price?: number;
+  /** Reference prices by vendor, absent when nobody lists the card. */
+  prices?: Record<string, number>;
 }
 
 interface IndexDeck {
@@ -83,9 +83,9 @@ function toIndexDeck(
       collectorNumber: c.collectorNumber,
       rarity: c.rarity,
       typeName: c.typeName,
-      // Omitted rather than null: most tokens have no price, and absent keys
-      // cost nothing in the published file.
-      ...(c.price === null ? {} : { price: c.price }),
+      // Omitted when empty: most tokens are priced by nobody, and an absent
+      // key costs nothing in the published file.
+      ...(Object.keys(c.prices).length ? { prices: c.prices } : {}),
     })),
   };
 }
@@ -140,7 +140,7 @@ let gone = 0;
 for (const [i, link] of links.entries()) {
   if (i > 0) await sleep(config.fetchDelayMs);
   try {
-    const snapshot = await scrapeDeck(link.deckId, config.priceVendor);
+    const snapshot = await scrapeDeck(link.deckId, config.priceVendors);
     if (!snapshot) {
       gone++;
       log.warn(`skipping deck that is no longer available: ${link.linkText}`);
@@ -188,11 +188,11 @@ const index = {
    * Where the prices come from. Published so the site can name the vendor
    * rather than presenting a bare number as if it were the shop's own.
    */
-  priceSource: {
-    vendor: config.priceVendor,
-    label: PRICE_VENDORS[config.priceVendor].label,
-    currency: PRICE_VENDORS[config.priceVendor].currency,
-  },
+  priceSources: config.priceVendors.map((v) => ({
+    vendor: v,
+    label: PRICE_VENDORS[v].label,
+    currency: PRICE_VENDORS[v].currency,
+  })),
   stats: {
     decks: decks.length, entries, copies, names,
     newPrintings: arrivedKeys.length, skipped: gone, failed,

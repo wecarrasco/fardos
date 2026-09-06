@@ -4,7 +4,7 @@ import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
-import { formatPrice, describeTotal } from './prices.js';
+import { cardPrice, formatPrice, describeTotals } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
 
@@ -235,18 +235,28 @@ function cardRow(c, deck, opts = {}) {
 }
 
 /**
- * Reference price for one card.
+ * Reference prices for one card, one figure per published vendor.
  *
- * Always shows the vendor's name. A bare figure next to a discount badge would
- * read as the seller's asking price, which it is not.
+ * Every figure is labelled with whose price it is. A bare number beside a
+ * discount badge would read as the seller's asking price, which it is not --
+ * and with two vendors on the row, an unlabelled pair would be unreadable.
+ *
+ * A vendor that does not price the card is left out rather than shown empty.
  */
 function priceNote(card) {
-  const money = formatPrice(card.price, index?.priceSource);
-  if (!money) return '';
-  const vendor = index?.priceSource?.label ?? 'market';
-  return `<div class="price" title="Market reference price from ${esc(vendor)}, not the seller's price">
-            ${esc(money)} <span class="price-src">${esc(vendor)}</span>
-          </div>`;
+  const parts = (index?.priceSources ?? [])
+    .map((source) => {
+      const money = formatPrice(cardPrice(card, source), source);
+      return money
+        ? `<span class="price-one">${esc(money)}
+             <span class="price-src">${esc(source.label)}</span></span>`
+        : '';
+    })
+    .filter(Boolean);
+
+  if (!parts.length) return '';
+  return `<div class="price" title="Market reference prices, not the seller's price"
+          >${parts.join('')}</div>`;
 }
 
 function renderResults(data, opts = {}) {
@@ -542,7 +552,7 @@ function renderBrowseDeck(deckId) {
      <b>${deck.cards.length.toLocaleString()}</b> entries &middot;
      updated ${esc(fmtDate(deck.updatedAt))}
      ${(() => {
-       const t = describeTotal(deck.cards, index?.priceSource);
+       const t = describeTotals(deck.cards, index?.priceSources);
        return t ? `<div class="price-total">Reference value ${esc(t)}. Not the seller's price.</div>` : '';
      })()}`;
 
@@ -644,12 +654,12 @@ function renderDecklist() {
     for (const s of m.sources) {
       if (left <= 0) break;
       const n = Math.min(left, s.quantity);
-      take.push({ price: s.card.price, quantity: n });
+      take.push({ prices: s.card.prices, quantity: n });
       left -= n;
     }
     return take;
   });
-  const value = describeTotal(supplied, index?.priceSource);
+  const value = describeTotals(supplied, index?.priceSources);
 
   summaryEl.innerHTML =
     `<b>${summary.foundCopies}</b> of <b>${summary.wantedCopies}</b> copies available ` +

@@ -81,9 +81,16 @@ export interface DeckCard {
   rarity: string | null;
   typeName: string;
   manaValue: number | null;
-  /** Market reference price from the configured vendor, or null. */
-  price: number | null;
+  /**
+   * Market reference prices, keyed by vendor. A vendor that does not list the
+   * card is simply absent rather than present-and-null, so the published index
+   * carries no keys for what nobody prices.
+   */
+  prices: CardPrices;
 }
+
+/** Reference prices for one card. Absent vendor = that vendor has no price. */
+export type CardPrices = Partial<Record<PriceVendor, number>>;
 
 export interface DeckSnapshot {
   deckId: string;
@@ -156,7 +163,20 @@ function vendorPrice(pricing: unknown, vendor: PriceVendor): number | null {
   return typeof value === 'number' && value > 0 ? Math.round(value * 100) / 100 : null;
 }
 
-function cardsFromPayload(deck: Record<string, unknown>, vendor: PriceVendor): DeckCard[] {
+/** Every requested vendor's price for one card, skipping those with none. */
+function cardPrices(pricing: unknown, vendors: readonly PriceVendor[]): CardPrices {
+  const out: CardPrices = {};
+  for (const v of vendors) {
+    const p = vendorPrice(pricing, v);
+    if (p !== null) out[v] = p;
+  }
+  return out;
+}
+
+function cardsFromPayload(
+  deck: Record<string, unknown>,
+  vendors: readonly PriceVendor[],
+): DeckCard[] {
   const raw = (deck['cards'] ?? []) as Record<string, unknown>[];
   return raw.map((c) => ({
     internalId: num(c['internalId']),
@@ -170,7 +190,7 @@ function cardsFromPayload(deck: Record<string, unknown>, vendor: PriceVendor): D
     rarity: str(c['rarity']),
     typeName: cardTypeName(c['type']),
     manaValue: num(c['manaValue']),
-    price: vendorPrice(c['pricing'], vendor),
+    prices: cardPrices(c['pricing'], vendors),
   }));
 }
 
@@ -202,7 +222,7 @@ function cardsFromDom($: cheerio.CheerioAPI): DeckCard[] {
       rarity: null,
       typeName: 'Unknown',
       manaValue: null,
-      price: null,
+      prices: {},
     });
   });
 
@@ -217,7 +237,7 @@ function cardsFromDom($: cheerio.CheerioAPI): DeckCard[] {
 export function parseDeckPage(
   html: string,
   deckId: string,
-  vendor: PriceVendor = 'tcgplayer',
+  vendors: readonly PriceVendor[] = ['tcgplayer'],
 ): DeckSnapshot {
   const $ = cheerio.load(html);
   const url = `https://manabox.app/decks/${deckId}`;
@@ -241,7 +261,7 @@ export function parseDeckPage(
       str(payload['name']) ?? ($(MANABOX_SELECTORS.deckTitle).first().text().trim() || deckId);
     const edit = num(payload['editDate']);
     lastUpdated = edit ? new Date(edit).toISOString() : null;
-    cards = cardsFromPayload(payload, vendor);
+    cards = cardsFromPayload(payload, vendors);
   } else {
     log.anomaly(`no deck JSON payload found -- falling back to DOM parsing`, { deckId });
     name = $(MANABOX_SELECTORS.deckTitle).first().text().trim() || deckId;
@@ -268,11 +288,11 @@ export function parseDeckPage(
 /** Fetch and parse one deck. Returns null when the deck is gone (404/410). */
 export async function scrapeDeck(
   deckId: string,
-  vendor: PriceVendor = 'tcgplayer',
+  vendors: readonly PriceVendor[] = ['tcgplayer'],
 ): Promise<DeckSnapshot | null> {
   const url = `https://manabox.app/decks/${deckId}`;
   try {
-    return parseDeckPage(await fetchHtml(url), deckId, vendor);
+    return parseDeckPage(await fetchHtml(url), deckId, vendors);
   } catch (err) {
     if (err instanceof HttpError) {
       log.warn(`deck is gone (HTTP ${err.status}), marking inactive`, { deckId });

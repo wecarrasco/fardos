@@ -207,43 +207,79 @@ without reaching for the button.
 
 ## Prices
 
-Cards carry a **market reference price**, taken from ManaBox's own pricing data. Coverage
-is 100% of non-token cards; tokens are largely unpriced and simply show nothing.
+Cards carry **market reference prices** from two vendors, taken from ManaBox's own
+pricing data. Both cover 100% of non-token cards (8,210 of 8,210); tokens are largely
+unpriced and simply show nothing.
 
 ### These are not the seller's prices
 
 That distinction is the whole design. A bare figure sitting next to a "20% OFF" badge
-would read as "this costs $7.57, less 20%", and nothing here supports that reading — we
+would read as "this costs $7.57, less 20%", and nothing here supports that reading -- we
 do not know what this shop charges or what it prices against.
 
 So every figure names its source, everywhere it appears:
 
 ```
-$7.57 TCGplayer
-Reference value $954.44 at TCGplayer. Not the seller's price.
+$7.57 TCGplayer   $7.49 Card Kingdom                        <- result row
+
+$7.57   TCGplayer                                           <- card preview
+$7.49   Card Kingdom
+market reference - not the seller's price
+
+Reference value $924.21 at TCGplayer - $1,108.57 at Card Kingdom.
+Not the seller's price.                                     <- deck and decklist totals
 ```
 
 No arithmetic is done against the discount, and no total is presented as an asking price.
-The number is there to help someone judge whether a card is worth asking about.
+The numbers are there to help someone judge whether a card is worth asking about.
+
+### Why two vendors
+
+They answer different questions, and the gap between them is the useful part.
+
+TCGplayer is a **marketplace**, so its figure tracks the cheapest real listing. Card
+Kingdom is **one shop's asking price**, with a floor of a few cents per card. On expensive
+staples the two sit within about 30% of each other. On bulk commons the gap reaches
+**2.4x** -- a deck TCGplayer values at $104.78 is $246.91 at Card Kingdom -- because
+cards worth almost nothing on a marketplace still carry a retailer's minimum.
+
+Publishing one vendor alone would have meant picking a number and hoping. Publishing both
+makes the spread visible, which is what a buyer deciding whether to ask about a card
+actually wants to know.
 
 ### Choices behind it
 
-**TCGplayer by default**, set by `PRICE_VENDOR`. It quotes USD, which suits a Honduran
-seller better than Cardmarket's EUR, and it prices every non-token card in this
-catalogue. `cardKingdom`, `manapool`, `starcitygames` and `cardmarket` are also available.
+**Both are read in one pass.** Every vendor's price arrives in the same page payload, so a
+second vendor costs no extra scraping time -- only index size.
+
+**`PRICE_VENDORS` chooses them**, as a comma-separated list, defaulting to
+`tcgplayer,cardKingdom`. `manapool`, `starcitygames` and `cardmarket` are also available;
+Cardmarket quotes EUR rather than USD. An unknown name fails the build rather than
+quietly publishing an index with no prices in it.
 
 **Cardhoarder is deliberately excluded.** It quotes MTGO event tickets rather than money,
 so a figure from it would render as currency while meaning something else entirely.
 
 **An unpriced card shows nothing, not `$0.00`**, which would read as free. Totals report
 how many cards they could not price rather than quietly counting them as zero, because a
-partial total that looks complete is worse than an honest one.
+partial total that looks complete is worse than an honest one. Coverage differs slightly
+between vendors, so that count is stated per vendor when they disagree and once at the
+end when they do not.
 
-**Decklist totals count what can actually be supplied** — the cheapest source for each
+**Decklist totals count what can actually be supplied** -- the cheapest source for each
 card, capped at the quantity asked for. Summing every source would inflate the figure.
 
-Storing one price per entry costs about 15 KB gzipped: prices are rounded to cents, and
-unpriced cards omit the field entirely rather than carrying a null.
+Measured on the live catalogue, prices cost:
+
+| Index | Gzipped |
+| --- | --- |
+| no prices | 148.8 KB |
+| TCGplayer only | 175.2 KB (+26.5) |
+| both vendors | 188.7 KB (+13.4) |
+
+The second vendor is roughly half the price of the first, because the per-card `prices`
+wrapper is already paid for by then. Figures are rounded to cents, and a vendor that does
+not list a card omits its key entirely rather than carrying a null.
 
 ---
 

@@ -19,7 +19,7 @@ import { normalizeCardName } from './normalize.js';
  * @property {string} name
  * @property {string} [norm] populated lazily by cardNorm()
  * @property {string} [firstSeen] YYYY-MM-DD; absent when the arrival date is unknown
- * @property {number} [price] market reference price, absent when unpriced
+ * @property {Record<string, number>} [prices] reference prices by vendor, absent when nobody lists it
  * @property {number} quantity
  * @property {boolean} foil
  * @property {string|null} setName
