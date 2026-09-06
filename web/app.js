@@ -129,7 +129,8 @@ function renderFilters(unfiltered, filtered, facets) {
     ? `<div class="seg" role="group" aria-label="Finish">
          ${[['all', 'All'], ['foil', `Foil (${facets.foil.foil})`], ['nonfoil', `Non-foil (${facets.foil.nonfoil})`]]
            .map(([v, label]) =>
-             `<button type="button" data-foil="${v}" class="${filters.foil === v ? 'on' : ''}">${esc(label)}</button>`)
+             `<button type="button" data-foil="${v}" class="${filters.foil === v ? 'on' : ''}"
+                      aria-pressed="${filters.foil === v}">${esc(label)}</button>`)
            .join('')}
        </div>`
     : '';
@@ -216,7 +217,7 @@ function cardRow(c, deck, opts = {}) {
       <td>
         <button type="button" class="name" data-card="${ref}"
                 aria-expanded="false" aria-haspopup="dialog"
-                title="Show card">${opts.query ? highlight(c.name, opts.query) : esc(c.name)}</button>
+                title="Show ${esc(c.name)}">${opts.query ? highlight(c.name, opts.query) : esc(c.name)}</button>
         ${c.foil ? '<span class="foil">FOIL</span>' : ''}
         ${isNew ? '<span class="new-badge">NEW</span>' : ''}
         <div class="setinfo">
@@ -357,6 +358,9 @@ function showTab(which) {
     const tab = $(refs.tab);
     tab.classList.toggle('is-active', on);
     tab.setAttribute('aria-selected', String(on));
+    // Roving tabindex: one Tab press reaches the tab row, then arrows move
+    // within it. Four separate tab stops would be tedious to pass through.
+    tab.tabIndex = on ? 0 : -1;
     $(refs.pane).hidden = !on;
   }
 
@@ -381,6 +385,24 @@ function showTab(which) {
 for (const [id, refs] of Object.entries(TABS)) {
   $(refs.tab).addEventListener('click', () => showTab(id));
 }
+
+// Arrow keys move between tabs, as the tablist pattern expects.
+$('tab-search').parentElement.addEventListener('keydown', (ev) => {
+  const ids = Object.keys(TABS);
+  const here = ids.indexOf(activeTab);
+  if (here === -1) return;
+
+  const to =
+    ev.key === 'ArrowRight' ? (here + 1) % ids.length :
+    ev.key === 'ArrowLeft' ? (here - 1 + ids.length) % ids.length :
+    ev.key === 'Home' ? 0 :
+    ev.key === 'End' ? ids.length - 1 : -1;
+  if (to === -1) return;
+
+  ev.preventDefault();
+  showTab(ids[to]);
+  $(TABS[ids[to]].tab).focus();
+});
 windowSelect.addEventListener('change', renderArrivals);
 
 /* ------------------------------------------------------------------ *
@@ -435,7 +457,8 @@ function renderBrowseList() {
       <div class="br-grid">${sec.decks.map((d) => {
         const fresh = d.cards.filter((c) => isNewCard(c, cutoff)).length;
         return `
-          <button type="button" class="br-card" data-deck="${esc(d.id)}">
+          <button type="button" class="br-card" data-deck="${esc(d.id)}"
+                  aria-label="${esc(d.name)}, ${d.cardCount} cards${d.discount ? `, ${d.discount}% off` : ''}">
             <div class="br-name">
               ${esc(d.name)}
               ${d.discount ? `<span class="chip off">${d.discount}% OFF</span>` : ''}

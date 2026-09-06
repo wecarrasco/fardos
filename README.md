@@ -239,6 +239,33 @@ rather than being stripped to nothing.
 
 ---
 
+## Accessibility
+
+Audited and fixed rather than assumed. What the pass covered:
+
+- **Labels.** The search box and the decklist textarea had placeholders only, which
+  vanish on typing and are not reliable accessible names. Both now have real labels,
+  visually hidden.
+- **Tabs.** They looked like tabs but were not wired as such: no `aria-controls`, no
+  `tabpanel` roles, and every tab was its own stop, so reaching the content meant passing
+  through four of them. Now a roving tabindex puts one stop on the row, and Left/Right/
+  Home/End move within it.
+- **The card preview.** It opened on focus and closed on blur, which meant a keyboard
+  user could never reach the links inside it — the panel disappeared the moment they
+  tried. Focus no longer opens it. Activating the card name pins it open, moves focus in,
+  and Escape closes it and puts focus back on the card. Hovering is decoration, so it is
+  marked `aria-hidden` and announces nothing; the row already carries the same detail.
+- **Live regions.** Results, the update progress and the decklist tally now announce
+  themselves, so a screen reader user is told the page changed rather than having to go
+  looking.
+- **Colour contrast.** Every text colour was measured against its real composited
+  background, in both themes. Three failed in light mode — the greens that read well on
+  the dark background were far too pale on white, at 1.9:1 and 2.3:1 against a 4.5:1
+  requirement, and the amber button sat just under at 4.38:1. Status colours are now
+  theme-aware variables. Both themes pass AA throughout.
+
+---
+
 ## Browse
 
 Until now every route into the catalogue needed you to already know what you wanted: a

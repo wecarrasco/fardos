@@ -38,12 +38,15 @@ export function createPreview(getIndex) {
   el.className = 'cardpreview';
   el.hidden = true;
   el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'false');
   el.setAttribute('aria-label', 'Card preview');
+  el.tabIndex = -1;
   document.body.appendChild(el);
 
   let openTimer = null;
   let current = null;      // the anchor element the panel belongs to
   let pinned = false;      // opened by tap/click rather than hover
+  let restoreFocusTo = null;
 
   const isTouch = window.matchMedia('(hover: none)').matches;
 
@@ -119,8 +122,19 @@ export function createPreview(getIndex) {
     render(card, deckId);
     el.hidden = false;
     el.classList.toggle('is-pinned', pin);
+
+    // Hovering is decoration: the row already carries the card's details, so
+    // announcing a second copy would only be noise. Pinning it makes it a real
+    // dialog, because that is when its links can actually be used.
+    el.setAttribute('aria-hidden', String(!pin));
+
     position(anchor);
     anchor.setAttribute('aria-expanded', 'true');
+
+    if (pin) {
+      restoreFocusTo = anchor;
+      el.focus({ preventScroll: true });
+    }
 
     // CSS reserves the card's aspect ratio so the height is right immediately,
     // but a picture that fails to load collapses the box. Re-check once it
@@ -133,13 +147,21 @@ export function createPreview(getIndex) {
     }
   }
 
-  function close() {
+  function close({ restoreFocus = false } = {}) {
     clearTimeout(openTimer);
     openTimer = null;
     if (current) current.setAttribute('aria-expanded', 'false');
+
+    const returnTo = restoreFocus ? restoreFocusTo : null;
     current = null;
     pinned = false;
+    restoreFocusTo = null;
     el.hidden = true;
+    el.setAttribute('aria-hidden', 'true');
+
+    // Dismissing with the keyboard must put the caret back where it was, or
+    // focus falls to the top of the document.
+    if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
   }
 
   /**
@@ -184,22 +206,17 @@ export function createPreview(getIndex) {
       if (hit) open(anchor, hit.card, hit.deckId, { pin: true });
     });
 
-    // Keyboard: the anchors are buttons, so focus opens and blur closes.
-    root.addEventListener('focusin', (ev) => {
-      const anchor = anchorOf(ev.target);
-      if (!anchor) return;
-      const hit = resolve(anchor);
-      if (hit) open(anchor, hit.card, hit.deckId);
-    });
-    root.addEventListener('focusout', (ev) => {
-      if (!pinned && anchorOf(ev.target) === current) close();
-    });
+    // Keyboard users reach the panel through the button's own activation,
+    // which pins it and moves focus inside. Opening on focus and closing on
+    // blur, as this once did, made the links in the panel unreachable.
   }
 
   // Anything that moves the page invalidates the position, so dismiss.
   window.addEventListener('scroll', () => { if (!pinned) close(); }, { passive: true });
   window.addEventListener('resize', close);
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') close(); });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !el.hidden) close({ restoreFocus: pinned });
+  });
   document.addEventListener('click', (ev) => {
     if (pinned && !el.contains(ev.target) && !ev.target.closest?.('[data-card]')) close();
   });

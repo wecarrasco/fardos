@@ -12,38 +12,44 @@
   <div class="wrap">
     <h1>MTG Card Finder</h1>
     <p class="sub">Search every ManaBox deck listed on the seller's Linktree.</p>
-    <div class="tabs" role="tablist">
-      <button id="tab-search" class="tab is-active" role="tab" aria-selected="true">Search</button>
-      <button id="tab-new" class="tab" role="tab" aria-selected="false">
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button id="tab-search" class="tab is-active" role="tab"
+              aria-selected="true" aria-controls="pane-search" tabindex="0">Search</button>
+      <button id="tab-new" class="tab" role="tab"
+              aria-selected="false" aria-controls="pane-new" tabindex="-1">
         New arrivals <span id="new-count" class="count" hidden></span>
       </button>
-      <button id="tab-browse" class="tab" role="tab" aria-selected="false">Browse</button>
-      <button id="tab-list" class="tab" role="tab" aria-selected="false">Decklist</button>
+      <button id="tab-browse" class="tab" role="tab"
+              aria-selected="false" aria-controls="pane-browse" tabindex="-1">Browse</button>
+      <button id="tab-list" class="tab" role="tab"
+              aria-selected="false" aria-controls="pane-list" tabindex="-1">Decklist</button>
     </div>
 
-    <div id="pane-search">
+    <div id="pane-search" role="tabpanel" aria-labelledby="tab-search">
       <div class="searchbar">
+        <label for="q" class="visually-hidden">Card name</label>
         <input id="q" type="search" placeholder="Card name, e.g. Sol Ring" autocomplete="off"
                spellcheck="false" list="suggestions" disabled>
         <datalist id="suggestions"></datalist>
       </div>
     </div>
 
-    <div id="pane-browse" hidden>
+    <div id="pane-browse" role="tabpanel" aria-labelledby="tab-browse" hidden>
       <div id="browse-bar" class="listbar"></div>
     </div>
 
-    <div id="pane-list" hidden>
+    <div id="pane-list" role="tabpanel" aria-labelledby="tab-list" hidden>
+      <label for="decklist" class="visually-hidden">Decklist or CSV export</label>
       <textarea id="decklist" rows="7" spellcheck="false"
         placeholder="Paste a ManaBox or Moxfield CSV export, or a plain list:&#10;&#10;4 Lightning Bolt&#10;1 Sol Ring (SLD) 2467&#10;2 Ocelot Pride *F*&#10;Seedborn Muse"></textarea>
       <div class="listbar">
         <button id="check-list" type="button" class="btn">Check list</button>
         <button id="clear-list" type="button" class="btn secondary">Clear</button>
-        <span id="list-note" class="status"></span>
+        <span id="list-note" class="status" role="status" aria-live="polite"></span>
       </div>
     </div>
 
-    <div id="pane-new" hidden>
+    <div id="pane-new" role="tabpanel" aria-labelledby="tab-new" hidden>
       <div class="windowpick">
         <label for="window">Showing cards added</label>
         <select id="window" class="btn secondary">
@@ -60,14 +66,14 @@
     </div>
     <div id="progress" class="progress" hidden>
       <div class="bar"><span id="bar-fill"></span></div>
-      <div id="progress-text" class="progress-text"></div>
+      <div id="progress-text" class="progress-text" role="status" aria-live="polite"></div>
     </div>
   </div>
 </header>
 
 <main class="wrap">
   <div id="filters" class="filters" hidden></div>
-  <div id="summary" class="summary" hidden></div>
+  <div id="summary" class="summary" role="status" aria-live="polite" hidden></div>
   <div id="results"></div>
   <div id="empty" class="loading">Loading card index...</div>
 </main>
