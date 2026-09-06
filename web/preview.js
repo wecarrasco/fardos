@@ -77,7 +77,8 @@ export function createPreview(getIndex) {
 
     el.innerHTML = `
       <div class="cp-img">${
-        img ? `<img alt="${esc(card.name)}" src="${esc(img)}" loading="lazy">`
+        img ? `<div class="cp-load" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+               <img alt="${esc(card.name)}" src="${esc(img)}" loading="lazy">`
             : '<div class="cp-noimg">No picture for this printing</div>'
       }</div>
       <div class="cp-body">
@@ -101,6 +102,20 @@ export function createPreview(getIndex) {
         ${elsewhere}
         ${page ? `<a class="cp-link" href="${esc(page)}" target="_blank" rel="noopener noreferrer">View on Scryfall &rarr;</a>` : ''}
       </div>`;
+
+    // The pips are for a wait, not for a picture the browser already holds:
+    // marking the box after the fact means a cached image is never dressed in
+    // a loading state it does not need.
+    const shown = el.querySelector('.cp-img img');
+    if (shown && !shown.complete) {
+      const box = shown.parentElement;
+      box.classList.add('is-loading');
+      const settled = () => box.classList.remove('is-loading');
+      shown.addEventListener('load', settled, { once: true });
+      // A picture that never arrives should not bob forever. Clearing the flag
+      // on error leaves the reserved box empty, which reads as "nothing here".
+      shown.addEventListener('error', settled, { once: true });
+    }
 
     if (img) void preloadImage(img);
   }

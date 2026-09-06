@@ -11,6 +11,12 @@
   --accent-dim: #7a5c14;
   --foil: #b98cff;
   --link: #6fb3ff;
+  /* The five colours of Magic, for the loading pips. Not the mana symbols'
+     own colours: those are printed on white card stock, and the white pip in
+     particular vanishes against a light panel. Each theme gets inks that hold
+     their own against that theme's background. */
+  --mana-w: #f2ecd2; --mana-u: #9cc6e8; --mana-b: #9a928e;
+  --mana-r: #e28a62; --mana-g: #8fb87f;
 }
 @media (prefers-color-scheme: light) {
   :root {
@@ -18,6 +24,8 @@
     --text: #1a1d23; --muted: #5c6472; --accent: #8a5f00; --accent-dim: #e8d7a8;
     --ok: #0f7038; --bad: #c0342b;
     --foil: #6b3fbf; --link: #1668c9;
+    --mana-w: #b9a45c; --mana-u: #3d76ad; --mana-b: #6a615b;
+    --mana-r: #bd4f28; --mana-g: #477d3e;
   }
 }
 * { box-sizing: border-box; }
@@ -181,6 +189,39 @@ footer a:hover { color: var(--link); }
      final height when it gets positioned. Without this it is measured short,
      then grows off the bottom of the screen. */
   aspect-ratio: 745 / 1040;
+  position: relative;
+}
+
+/* Five mana pips bobbing in sequence while the picture is on its way.
+   `is-loading` is only ever set on a picture that has not already arrived, so
+   re-opening a card the browser has cached shows nothing at all rather than a
+   single frame of animation. */
+.cp-load { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; gap: 7px; }
+.cp-img.is-loading .cp-load { display: flex; }
+.cp-load span {
+  width: 9px; height: 9px; border-radius: 50%;
+  /* A hairline ring, so a pip close to the panel colour still has an edge. */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 15%, transparent);
+  animation: mana-bob 1.1s ease-in-out infinite;
+}
+.cp-load span:nth-child(1) { background: var(--mana-w); animation-delay: 0s; }
+.cp-load span:nth-child(2) { background: var(--mana-u); animation-delay: .11s; }
+.cp-load span:nth-child(3) { background: var(--mana-b); animation-delay: .22s; }
+.cp-load span:nth-child(4) { background: var(--mana-r); animation-delay: .33s; }
+.cp-load span:nth-child(5) { background: var(--mana-g); animation-delay: .44s; }
+@keyframes mana-bob {
+  0%, 60%, 100% { transform: translateY(0);    opacity: .45; }
+  30%           { transform: translateY(-7px); opacity: 1; }
+}
+/* Fading the picture in reads as the pips resolving into the card. Cached
+   pictures never carry `is-loading`, so they are opaque from the first frame
+   and do not flash. */
+.cp-img img { transition: opacity .25s ease; }
+.cp-img.is-loading img { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-load span { animation: none; opacity: .8; }
+  .cp-img img { transition: none; }
 }
 .cp-img:has(.cp-noimg) { aspect-ratio: auto; }
 .cp-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
