@@ -373,8 +373,8 @@ means anything in the next.
 
 ## Filters
 
-Search results and new arrivals can be narrowed by finish, rarity, card type, set and
-discount tier.
+Search results and new arrivals can be narrowed by finish, rarity, card type, set,
+discount tier and a **price ceiling** ("Under $5").
 
 **The controls are derived from the results, not fixed.** A search for Sol Ring offers no
 "card type" filter, because every result is an Artifact and the control would do nothing.
@@ -392,6 +392,51 @@ Applying it first would empty the page and only then remove the control, leaving
 looking at no results with nothing to clear. Filters that still make sense are kept
 across searches, and a "9 of 20 shown" note makes it obvious when something is being
 hidden.
+
+### A price ceiling excludes what it cannot price
+
+A card no vendor lists is dropped by "Under $5" rather than let through. An unknown price
+is not evidence of a low one, and showing a card that might cost anything under a heading
+promising it does not would be the one thing a price filter must never do.
+
+---
+
+## Sorting
+
+Search returns cards in match order, which is right while you are still finding the card
+and useless once you have found it. With 52 copies of Sol Ring across 10 decks, the
+question stops being "which decks have this" and becomes "where is it cheapest".
+
+Four orders: **best match** (the default), **cheapest first**, **most valuable first**,
+and **biggest discount first**. An order is offered only when it would actually reorder
+something -- no price orders without prices, and no discount order when every deck sits
+at the same percentage.
+
+### Prices and discounts are never multiplied together
+
+The obvious feature would be to sort by "price after discount". It is not built, because
+that number does not exist. Multiplying a third-party reference price by this shop's
+percentage off assumes the shop prices against that vendor, which nothing here
+establishes -- it would invent a figure and present it as an asking price.
+
+So a 30%-off deck at $10 still sorts below a full-price deck at $6, and discount is
+offered as its own separate order. The two facts sit side by side and the reader draws
+their own conclusion.
+
+### An unknown price leads neither direction
+
+A card the vendor does not price sorts last under *both* cheapest-first and
+most-valuable-first. It is not a cheap card and not an expensive one, so it must not head
+either list. The same rule orders the decks: one with nothing priced sinks to the bottom
+either way.
+
+### What "cheapest first" means in a grouped layout
+
+Results stay grouped by deck, so the order is: cards sorted within each deck, decks
+sorted by their best card. The first row of the page is therefore the single cheapest
+copy in the whole result -- the answer to the question -- and each deck leads with its
+own cheapest. The full list is not one flat ascending run, because that would mean
+abandoning the deck grouping the rest of the app is built around.
 
 ---
 

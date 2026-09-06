@@ -7,6 +7,8 @@
  * shown. A filter bar full of dead options is worse than no filter bar.
  */
 
+import { cardPrice } from './prices.js';
+
 /**
  * @typedef {import('./search.js').IndexCard} IndexCard
  * @typedef {import('./search.js').DeckHits} DeckHits
@@ -18,17 +20,24 @@
  * @property {string|null} typeName
  * @property {string|null} setId
  * @property {number|null} minDiscount
+ * @property {number|null} maxPrice reference price ceiling, from the primary vendor
  */
 
 /** @returns {Filters} */
 export const emptyFilters = () => ({
-  foil: 'all', rarity: null, typeName: null, setId: null, minDiscount: null,
+  foil: 'all', rarity: null, typeName: null, setId: null, minDiscount: null, maxPrice: null,
 });
 
 /** @param {Filters} f */
 export const isFiltered = (f) =>
   f.foil !== 'all' || f.rarity !== null || f.typeName !== null ||
-  f.setId !== null || f.minDiscount !== null;
+  f.setId !== null || f.minDiscount !== null || f.maxPrice !== null;
+
+/**
+ * Ceilings worth offering. A round ladder rather than quantiles, because
+ * "under $5" is a thought someone actually has and "under $4.73" is not.
+ */
+const PRICE_STEPS = [1, 2, 5, 10, 25, 50, 100];
 
 /**
  * Options worth offering, each with the number of matching entries.
@@ -37,8 +46,9 @@ export const isFiltered = (f) =>
  * currently filtered view, so the numbers do not shift as choices are made.
  *
  * @param {Narrowable | null | undefined} result
+ * @param {import('./prices.js').PriceSource | null} [source] absent when the index carries no prices
  */
-export function facetsFor(result) {
+export function facetsFor(result, source) {
   const rarity = new Map();
   const typeName = new Map();
   const sets = new Map();
@@ -64,6 +74,24 @@ export function facetsFor(result) {
 
   const byCount = (a, b) => b.count - a.count || String(a.label).localeCompare(String(b.label));
 
+  // How many entries each ceiling would leave. A step that keeps everything
+  // narrows nothing, and one that keeps nothing empties the page, so neither
+  // is offered.
+  let entries = 0;
+  const prices = [];
+  for (const deck of result?.decks ?? []) {
+    for (const c of deck.cards) {
+      entries++;
+      const p = cardPrice(c, source);
+      if (p !== null) prices.push(p);
+    }
+  }
+  const maxPrice = prices.length
+    ? PRICE_STEPS
+        .map((step) => ({ value: step, label: `Under $${step}`, count: prices.filter((p) => p <= step).length }))
+        .filter((o) => o.count > 0 && o.count < entries)
+    : [];
+
   return {
     // Only worth showing when the results actually contain both.
     foil: foil > 0 && nonfoil > 0 ? { foil, nonfoil } : null,
@@ -73,6 +101,7 @@ export function facetsFor(result) {
     discount: discounts.size > 1
       ? [...discounts.values()].sort((a, b) => Number(b.value) - Number(a.value))
       : [],
+    maxPrice,
   };
 }
 
@@ -84,16 +113,27 @@ export function facetsFor(result) {
  * @template {Narrowable} T
  * @param {T} result
  * @param {Filters} filters
+ * @param {import('./prices.js').PriceSource | null} [source] absent when the index carries no prices
  * @returns {T}
  */
-export function applyFilters(result, filters) {
+export function applyFilters(result, filters, source) {
   if (!result?.decks || !isFiltered(filters)) return result;
+
+  // A card nobody prices is dropped by a ceiling rather than kept: an unknown
+  // price is not evidence of a low one, and letting it through would put cards
+  // that might cost anything under a heading that promises they do not.
+  const underCeiling = (c) => {
+    if (filters.maxPrice === null) return true;
+    const p = cardPrice(c, source);
+    return p !== null && p <= filters.maxPrice;
+  };
 
   const keepsCard = (c) =>
     (filters.foil === 'all' || (filters.foil === 'foil' ? c.foil : !c.foil)) &&
     (filters.rarity === null || c.rarity === filters.rarity) &&
     (filters.typeName === null || c.typeName === filters.typeName) &&
-    (filters.setId === null || c.setId === filters.setId);
+    (filters.setId === null || c.setId === filters.setId) &&
+    underCeiling(c);
 
   /** @type {DeckHits[]} */
   const decks = [];
@@ -133,5 +173,7 @@ export function pruneFilters(filters, facets) {
     setId: filters.setId !== null && has(facets.setId, filters.setId) ? filters.setId : null,
     minDiscount: filters.minDiscount !== null && has(facets.discount, filters.minDiscount)
       ? filters.minDiscount : null,
+    maxPrice: filters.maxPrice !== null && has(facets.maxPrice, filters.maxPrice)
+      ? filters.maxPrice : null,
   };
 }

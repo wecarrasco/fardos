@@ -7,6 +7,7 @@ import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
 import { cardPrice, formatPrice, describeTotals } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
+import { DEFAULT_SORT, SORT_LABELS, availableSorts, isSorted, pruneSort, sortResult } from './sorting.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -104,6 +105,14 @@ let newBadgeCutoff = null;
 
 const filtersEl = $('filters');
 let filters = emptyFilters();
+/** Result order. Kept apart from the filters: it narrows nothing. */
+let sort = DEFAULT_SORT;
+
+/**
+ * The vendor that price sorting and the price ceiling read. The first one
+ * published, so the order matches the leftmost figure on every row.
+ */
+const priceSource = () => index?.priceSources?.[0] ?? null;
 /** The unfiltered result, kept so changing a filter need not redo the search. */
 let lastResult = null;
 /** What to call when a filter changes. */
@@ -121,10 +130,22 @@ function selectControl(key, anyLabel, options, current, format = (o) => o.label)
           </select>`;
 }
 
-function renderFilters(unfiltered, filtered, facets) {
-  const anyControl = facets.foil || facets.rarity.length || facets.typeName.length ||
-                     facets.setId.length || facets.discount.length;
+function renderFilters(unfiltered, filtered, facets, sorts) {
+  // Reordering one row is not reordering, so the control stays away until
+  // there is something for it to do.
+  const canSort = sorts.length > 1 && unfiltered.hitCount > 1;
+  const anyControl = canSort || facets.foil || facets.rarity.length || facets.typeName.length ||
+                     facets.setId.length || facets.discount.length || facets.maxPrice.length;
   if (!anyControl) { filtersEl.hidden = true; filtersEl.innerHTML = ''; return; }
+
+  const sortControl = canSort
+    ? `<select data-sort class="${isSorted(sort) ? 'on' : ''}" aria-label="Sort results">
+         ${sorts.map((v) =>
+           `<option value="${esc(v)}"${v === sort ? ' selected' : ''}>${esc(SORT_LABELS[v])}</option>`)
+          .join('')}
+       </select>
+       <span class="fsep" aria-hidden="true"></span>`
+    : '';
 
   const seg = facets.foil
     ? `<div class="seg" role="group" aria-label="Finish">
@@ -138,30 +159,44 @@ function renderFilters(unfiltered, filtered, facets) {
 
   filtersEl.hidden = false;
   filtersEl.innerHTML =
+    sortControl +
     seg +
+    selectControl('maxPrice', 'Any price', facets.maxPrice, filters.maxPrice) +
     selectControl('rarity', 'Any rarity', facets.rarity, filters.rarity) +
     selectControl('typeName', 'Any type', facets.typeName, filters.typeName) +
     selectControl('setId', 'Any set', facets.setId, filters.setId) +
     selectControl('minDiscount', 'Any discount', facets.discount, filters.minDiscount,
       (o) => `${o.value}% off or better`) +
-    (isFiltered(filters)
-      ? `<button type="button" class="clear">Clear filters</button>
-         <span class="count-note">${filtered.hitCount} of ${unfiltered.hitCount} shown</span>`
+    // The reset offers to undo whatever is actually in effect, and the count
+    // only appears when something was removed -- "20 of 20 shown" is noise.
+    (isFiltered(filters) || isSorted(sort)
+      ? `<button type="button" class="clear">${isFiltered(filters) ? 'Clear filters' : 'Reset order'}</button>` +
+        (isFiltered(filters)
+          ? `<span class="count-note">${filtered.hitCount} of ${unfiltered.hitCount} shown</span>`
+          : '')
       : '');
 }
 
 filtersEl.addEventListener('click', (ev) => {
   const foil = ev.target.closest('[data-foil]');
   if (foil) { filters.foil = foil.dataset.foil; return rerender(); }
-  if (ev.target.closest('.clear')) { filters = emptyFilters(); return rerender(); }
+  if (ev.target.closest('.clear')) {
+    filters = emptyFilters();
+    sort = DEFAULT_SORT;
+    return rerender();
+  }
 });
 
 filtersEl.addEventListener('change', (ev) => {
+  const order = ev.target.closest('[data-sort]');
+  if (order) { sort = order.value; return rerender(); }
+
   const sel = ev.target.closest('[data-filter]');
   if (!sel) return;
   const key = sel.dataset.filter;
   const raw = sel.value;
-  filters[key] = raw === '' ? null : (key === 'minDiscount' ? Number(raw) : raw);
+  const numeric = key === 'minDiscount' || key === 'maxPrice';
+  filters[key] = raw === '' ? null : (numeric ? Number(raw) : raw);
   rerender();
 });
 
@@ -173,11 +208,16 @@ function renderFiltered(result, opts, onRerender, draw = renderResults) {
   // Prune before applying, never after. A filter the new results cannot satisfy
   // would otherwise be applied once -- emptying the page -- and only then
   // dropped, leaving the reader looking at nothing with no filter to clear.
-  const facets = facetsFor(result);
+  const source = priceSource();
+  const facets = facetsFor(result, source);
+  const sorts = availableSorts(result, source);
   filters = pruneFilters(filters, facets);
+  sort = pruneSort(sort, sorts);
 
-  const filtered = applyFilters(result, filters);
-  renderFilters(result, filtered, facets);
+  // Narrow first, then order: sorting rows that are about to be dropped is
+  // work for nothing, and the deck order depends on which cards survive.
+  const filtered = sortResult(applyFilters(result, filters, source), sort, source);
+  renderFilters(result, filtered, facets, sorts);
   draw(filtered, opts);
 }
 
@@ -577,6 +617,7 @@ resultsEl.addEventListener('click', (ev) => {
   const card = ev.target.closest('.br-card');
   if (!card) return;
   filters = emptyFilters();      // a fresh deck deserves a fresh view
+  sort = DEFAULT_SORT;
   browseDeckId = card.dataset.deck;
   renderBrowse();
   window.scrollTo(0, 0);
@@ -585,6 +626,7 @@ resultsEl.addEventListener('click', (ev) => {
 $('browse-bar').addEventListener('click', (ev) => {
   if (!ev.target.closest('.br-back')) return;
   filters = emptyFilters();
+  sort = DEFAULT_SORT;
   browseDeckId = null;
   renderBrowse();
 });

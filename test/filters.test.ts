@@ -145,7 +145,7 @@ test('choices the new results cannot satisfy are dropped', () => {
     deck('a', 10, [card('One'), card('Two', { rarity: 'Common' })]),
   ]));
 
-  const stale = { foil: 'foil' as const, rarity: 'Mythic', typeName: 'Land', setId: 'zzz', minDiscount: 30 };
+  const stale = { foil: 'foil' as const, rarity: 'Mythic', typeName: 'Land', setId: 'zzz', minDiscount: 30, maxPrice: 5 };
   assert.deepEqual(pruneFilters(stale, facets), emptyFilters());
 });
 
@@ -156,7 +156,7 @@ test('choices that still apply are kept', () => {
   ]));
 
   const kept = pruneFilters(
-    { foil: 'foil', rarity: 'Common', typeName: null, setId: null, minDiscount: 20 },
+    { foil: 'foil', rarity: 'Common', typeName: null, setId: null, minDiscount: 20, maxPrice: null },
     facets,
   );
   assert.equal(kept.foil, 'foil');
@@ -168,4 +168,71 @@ test('isFiltered reports whether anything is narrowing', () => {
   assert.equal(isFiltered(emptyFilters()), false);
   assert.equal(isFiltered({ ...emptyFilters(), foil: 'foil' }), true);
   assert.equal(isFiltered({ ...emptyFilters(), minDiscount: 10 }), true);
+});
+
+/* ---------------------------------------------------------------- *
+ * Price ceiling
+ * ---------------------------------------------------------------- */
+
+const TCG = { vendor: 'tcgplayer', label: 'TCGplayer', currency: 'USD' };
+const priced = (name: string, price?: number, extra: any = {}) =>
+  card(name, { ...(price === undefined ? {} : { prices: { tcgplayer: price } }), ...extra });
+
+test('price ceilings are not offered without prices', () => {
+  const facets = facetsFor(result([deck('a', null, [card('One'), card('Two')])]), TCG);
+  assert.deepEqual(facets.maxPrice, []);
+});
+
+test('a ceiling that changes nothing is not offered', () => {
+  // Everything is under $100, so offering it would narrow nothing.
+  const facets = facetsFor(result([
+    deck('a', null, [priced('One', 1), priced('Two', 2)]),
+  ]), TCG);
+  const steps = facets.maxPrice.map((o: any) => o.value);
+  assert.ok(!steps.includes(100));
+  assert.ok(steps.includes(1), 'a step that excludes the $2 card is useful');
+});
+
+test('ceiling counts say how many entries survive', () => {
+  const facets = facetsFor(result([
+    deck('a', null, [priced('A', 0.5), priced('B', 3), priced('C', 40)]),
+  ]), TCG);
+  const under5 = facets.maxPrice.find((o: any) => o.value === 5);
+  assert.equal(under5!.count, 2);
+  assert.equal(under5!.label, 'Under $5');
+});
+
+test('a ceiling drops the dearer cards', () => {
+  const r = result([deck('a', null, [priced('Cheap', 1), priced('Dear', 60)])]);
+  const out = applyFilters(r, { ...emptyFilters(), maxPrice: 5 }, TCG);
+  assert.deepEqual(out.decks[0]!.cards.map((c: any) => c.name), ['Cheap']);
+  assert.equal(out.hitCount, 1);
+});
+
+test('an unpriced card is dropped by a ceiling, not let through', () => {
+  // It might cost anything; showing it under "Under $5" would promise it does not.
+  const r = result([deck('a', null, [priced('Known', 1), priced('Unknown')])]);
+  const out = applyFilters(r, { ...emptyFilters(), maxPrice: 5 }, TCG);
+  assert.deepEqual(out.decks[0]!.cards.map((c: any) => c.name), ['Known']);
+});
+
+test('a deck left with nothing under the ceiling disappears', () => {
+  const r = result([
+    deck('a', null, [priced('Cheap', 1)]),
+    deck('b', null, [priced('Dear', 90)]),
+  ]);
+  const out = applyFilters(r, { ...emptyFilters(), maxPrice: 5 }, TCG);
+  assert.deepEqual(out.decks.map((d: any) => d.deckId), ['a']);
+  assert.equal(out.deckCount, 1);
+});
+
+test('a ceiling counts as filtering', () => {
+  assert.equal(isFiltered({ ...emptyFilters(), maxPrice: 5 }), true);
+  assert.equal(isFiltered(emptyFilters()), false);
+});
+
+test('a ceiling the new results cannot offer is dropped', () => {
+  const facets = facetsFor(result([deck('a', null, [priced('One', 200)])]), TCG);
+  const pruned = pruneFilters({ ...emptyFilters(), maxPrice: 1 }, facets);
+  assert.equal(pruned.maxPrice, null);
 });
