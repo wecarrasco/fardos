@@ -8,6 +8,9 @@ import { cardPrice, formatPrice, describeTotals } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
 import { DEFAULT_SORT, SORT_LABELS, availableSorts, isSorted, pruneSort, sortResult } from './sorting.js';
+import {
+  addToCart, cartCount, cartMessage, loadCart, removeLine, resolveCart, saveCart, wantedFrom,
+} from './cart.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -107,6 +110,9 @@ const filtersEl = $('filters');
 let filters = emptyFilters();
 /** Result order. Kept apart from the filters: it narrows nothing. */
 let sort = DEFAULT_SORT;
+
+/** Cards to ask the seller for. Identity and quantity only; see cart.js. */
+let cart = loadCart();
 
 /**
  * The vendor that price sorting and the price ceiling read. The first one
@@ -271,7 +277,32 @@ function cardRow(c, deck, opts = {}) {
         ${priceNote(c)}
         ${cheaperElsewhere(c, deck)}
       </td>
+      <td class="cartcell">${cartControl(c, deck.deckId, ref)}</td>
     </tr>`;
+}
+
+/**
+ * Add-to-cart control for one row.
+ *
+ * Becomes a stepper once the card is in the cart, so the same corner of the row
+ * both adds and adjusts. The plus disables at the deck's own stock rather than
+ * letting someone ask for four copies of a card the seller has two of.
+ */
+function cartControl(card, deckId, ref) {
+  const want = wantedFrom(cart, deckId, card);
+  const cap = card.quantity ?? 0;
+  if (!cap) return '';
+
+  if (!want) {
+    return `<button type="button" class="cart-add" data-add="${ref}"
+                    title="Add ${esc(card.name)} to the cart">Add</button>`;
+  }
+  return `<span class="stepper" role="group" aria-label="Copies of ${esc(card.name)} in the cart">
+            <button type="button" data-step="${ref}" data-by="-1" aria-label="One fewer">&minus;</button>
+            <b>${want}</b>
+            <button type="button" data-step="${ref}" data-by="1" aria-label="One more"
+                    ${want >= cap ? 'disabled title="That is all this deck has"' : ''}>+</button>
+          </span>`;
 }
 
 /**
@@ -365,6 +396,7 @@ const TABS = {
   new:    { tab: 'tab-new',    pane: 'pane-new' },
   browse: { tab: 'tab-browse', pane: 'pane-browse' },
   list:   { tab: 'tab-list',   pane: 'pane-list' },
+  cart:   { tab: 'tab-cart',   pane: 'pane-cart' },
 };
 
 /** Read the window picker into the options newArrivals() expects. */
@@ -434,9 +466,11 @@ function showTab(which) {
   const url = new URL(location.href);
   url.searchParams.delete('new');
   url.searchParams.delete('list');
+  url.searchParams.delete('cart');
   if (which !== 'browse') url.searchParams.delete('deck');
   if (which === 'new') url.searchParams.set('new', windowSelect.value);
   if (which === 'list') url.searchParams.set('list', '1');
+  if (which === 'cart') url.searchParams.set('cart', '1');
   history.replaceState(null, '', url);
 
   // The NEW badge in search results always means "the last 7 days", whatever
@@ -446,6 +480,7 @@ function showTab(which) {
   if (which === 'search') { runSearch(qInput.value); qInput.focus(); }
   else if (which === 'new') renderArrivals();
   else if (which === 'browse') renderBrowse();
+  else if (which === 'cart') renderCart();
   else { renderDecklist(); listInput.focus(); }
 }
 
@@ -797,8 +832,11 @@ async function loadIndex() {
       if (saved) listInput.value = saved;
     } catch { /* private mode */ }
 
+    updateCartBadge();
+
     if (params.has('deck')) { browseDeckId = params.get('deck'); showTab('browse'); }
     else if (params.has('browse')) showTab('browse');
+    else if (params.has('cart')) showTab('cart');
     else if (params.has('list')) showTab('list');
     else if (params.has('new')) {
       const w = params.get('new');
@@ -1018,6 +1056,190 @@ qInput.addEventListener('change', () => {
   const url = new URL(location.href);
   qInput.value ? url.searchParams.set('q', qInput.value) : url.searchParams.delete('q');
   history.replaceState(null, '', url);
+});
+
+/* ------------------------------------------------------------------ *
+ * Cart
+ * ------------------------------------------------------------------ */
+
+const cartCountEl = $('cart-count');
+const cartPricesEl = $('cart-prices');
+
+/**
+ * The badge counts copies the seller could actually supply, not copies asked
+ * for. A deck that thins after something was added leaves a line wanting more
+ * than remains, and a badge reading 104 above a cart that says "5 cards" would
+ * be the most visible number on the page and the wrong one. The shortfall is
+ * still shown inside the cart rather than silently absorbed.
+ */
+function updateCartBadge() {
+  const n = index ? resolveCart(cart, index).copies : cartCount(cart);
+  cartCountEl.hidden = n === 0;
+  cartCountEl.textContent = String(n);
+}
+
+/**
+ * Add or adjust from a result row without redrawing the list.
+ *
+ * Browsing a deck can put a thousand rows on the page, and rebuilding all of
+ * them to change one number would lose the reader's place for no reason.
+ */
+resultsEl.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-add], [data-step]');
+  if (!btn) return;
+  ev.preventDefault();
+
+  const ref = Number(btn.dataset.add ?? btn.dataset.step);
+  const hit = rendered[ref];
+  if (!hit) return;
+
+  cart = addToCart(cart, hit.deckId, hit.card, btn.dataset.step ? Number(btn.dataset.by) : 1);
+  saveCart(cart);
+
+  const cell = btn.closest('.cartcell');
+  if (cell) {
+    cell.innerHTML = cartControl(hit.card, hit.deckId, ref);
+    // The control the reader was pressing has just been replaced. Put focus on
+    // whatever now stands in its place, or the caret falls to the document top
+    // mid-interaction.
+    (cell.querySelector('[data-step][data-by="1"]:not([disabled])') ??
+     cell.querySelector('[data-step], [data-add]'))?.focus();
+  }
+  updateCartBadge();
+});
+
+/** One deck's worth of the cart. */
+function cartGroup(group) {
+  const rows = group.items.map((item) => {
+    const c = item.card;
+    const short = item.issue === 'fewer';
+    const n = Math.min(item.want, item.available);
+    return `
+      <div class="cart-row${short ? ' is-short' : ''}">
+        <div class="cart-q">
+          <button type="button" class="cart-x" data-drop="${esc(item.line.key)}"
+                  aria-label="Remove ${esc(item.line.name)}">&times;</button>
+          <b>${n}&times;</b>
+        </div>
+        <div>
+          <div class="cart-name">${esc(item.line.name)}${c.foil ? ' <span class="foil">FOIL</span>' : ''}</div>
+          <div class="setinfo">
+            ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
+            ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
+          </div>
+          ${priceNote(c)}
+          ${short ? `<div class="cart-warn">You asked for ${item.want}; only ${item.available} left here.</div>` : ''}
+          ${cheaperElsewhere(c, { deckId: group.deckId, discount: group.discount })}
+        </div>
+      </div>`;
+  }).join('');
+
+  const subtotal = describeTotals(group.supplied, index?.priceSources);
+  return `
+    <section class="deck cart-deck">
+      <div class="deck-head">
+        <span>
+          <a href="${esc(group.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(group.deckName)}</a>
+          ${group.discount ? `<span class="chip off">${group.discount}% OFF</span>` : ''}
+        </span>
+        <span class="cart-sub">${subtotal ? esc(subtotal) : ''}</span>
+      </div>
+      <div class="cart-rows">${rows}</div>
+    </section>`;
+}
+
+function renderCart() {
+  if (!index) return;
+  filtersEl.hidden = true;   // the cart has its own shape
+
+  const resolved = resolveCart(cart, index);
+  const gone = resolved.unavailable;
+
+  $('cart-note').textContent = '';
+  updateCartBadge();
+
+  if (!cart.length) {
+    resultsEl.innerHTML = '';
+    summaryEl.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.className = 'empty';
+    emptyEl.textContent = 'Nothing here yet. Press "Add" on any card to start a list.';
+    return;
+  }
+
+  emptyEl.hidden = true;
+  summaryEl.hidden = false;
+  const value = describeTotals(resolved.supplied, index?.priceSources);
+  summaryEl.innerHTML =
+    `<b>${resolved.copies}</b> ${resolved.copies === 1 ? 'card' : 'cards'} from ` +
+    `<b>${resolved.deckCount}</b> ${resolved.deckCount === 1 ? 'deck' : 'decks'}.` +
+    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '');
+
+  // Cards that have left the catalogue are listed rather than quietly dropped:
+  // a list that shrinks by itself between visits is a list nobody can trust.
+  const goneBlock = gone.length
+    ? `<section class="deck cart-gone">
+         <div class="deck-head"><span>No longer available</span></div>
+         <div class="cart-rows">${gone.map((item) => `
+           <div class="cart-row is-gone">
+             <div class="cart-q">
+               <button type="button" class="cart-x" data-drop="${esc(item.line.key)}"
+                       aria-label="Remove ${esc(item.line.name)}">&times;</button>
+               <b>${item.want}&times;</b>
+             </div>
+             <div>
+               <div class="cart-name">${esc(item.line.name)}</div>
+               <div class="cart-warn">This deck no longer lists it. Search for it again to find another copy.</div>
+             </div>
+           </div>`).join('')}</div>
+       </section>`
+    : '';
+
+  resultsEl.innerHTML = resolved.groups.map(cartGroup).join('') + goneBlock;
+}
+
+/** Removing from inside the cart redraws it: the list just got shorter. */
+resultsEl.addEventListener('click', (ev) => {
+  const drop = ev.target.closest('[data-drop]');
+  if (!drop) return;
+  cart = removeLine(cart, drop.dataset.drop);
+  saveCart(cart);
+  renderCart();
+});
+
+$('cart-clear').addEventListener('click', () => {
+  if (!cart.length) return;
+  cart = [];
+  saveCart(cart);
+  renderCart();
+});
+
+cartPricesEl.addEventListener('change', () => {
+  $('cart-note').textContent = cartPricesEl.checked
+    ? 'The copied list will carry reference figures, labelled as such.'
+    : '';
+});
+
+$('cart-copy').addEventListener('click', async () => {
+  const text = cartMessage(resolveCart(cart, index), {
+    includePrices: cartPricesEl.checked,
+    sources: index?.priceSources ?? [],
+    formatPrice,
+  });
+  if (!text) return;
+
+  const note = $('cart-note');
+  try {
+    await navigator.clipboard.writeText(text);
+    note.textContent = 'Copied. Paste it to the seller.';
+  } catch {
+    // Clipboard access is refused outside a secure context and in some
+    // browsers. Showing the text is still useful; failing silently is not.
+    note.textContent = 'Could not reach the clipboard -- select the text below and copy it.';
+    resultsEl.insertAdjacentHTML('afterbegin',
+      `<textarea class="cart-fallback" rows="10" readonly>${esc(text)}</textarea>`);
+    resultsEl.querySelector('.cart-fallback')?.select();
+  }
 });
 
 /* ------------------------------------------------------------------ *

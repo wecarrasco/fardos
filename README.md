@@ -205,6 +205,82 @@ without reaching for the button.
 
 ---
 
+## Cart
+
+Press **Add** on any card row to start a list, then open the Cart tab and copy it out as a
+message to send the seller. There is no checkout: nothing is reserved, nothing is paid,
+and the seller is never told what anything costs.
+
+### A line is a printing *in a deck*
+
+The unit is not "Sol Ring". The same Sol Ring sits in ten of these decks across four
+discount tiers, so "add Sol Ring" has no answer -- which deck it comes from is half the
+identity, and it is the half the seller needs in order to go and find it. The cart keys
+every line on deck plus printing, so the Bloomburrow copy in *Artifacts III* and the
+Avatar copy in *Special Edition II* are two separate lines.
+
+That is also why the message is grouped by deck. A list sorted by card name would send
+the seller hunting through every deck for each row.
+
+### Only identity and quantity are stored
+
+A saved line holds the deck, the printing, how many you want, and the card's name. Nothing
+else. Prices, set details and availability are resolved against the current index every
+time the cart is drawn, so a rebuild that reprices a card, thins a deck or drops one is
+reflected at once.
+
+The `+` button stops at the number that deck actually holds, because the figure ends up in
+a message somebody has to fill.
+
+### Nothing shrinks quietly
+
+If a deck is thinned between visits, the line stays and says *"You asked for 4; only 1
+left here."* If a printing leaves its deck entirely, it moves to a **No longer available**
+group rather than disappearing. A list that quietly gets shorter between visits is a list
+nobody can trust.
+
+Totals count what can actually be supplied, and so does the tab badge. An early version
+summed the stored quantities instead, so a thinned deck produced a badge reading **104**
+above a cart that said **5 cards** -- the most visible number on the page, and the wrong
+one.
+
+### The message carries no prices by default
+
+The list is a request -- "do you have these?" -- and a column of third-party figures
+beside it reads as an offer, stating what the buyer intends to pay against prices the
+seller never quoted. Reference values are shown on screen, for your own budgeting, and
+left out of the copied text.
+
+A checkbox includes them when you do want them, and the message then says in its own
+body that they are market reference prices rather than the seller's, because once it is
+pasted into a chat it travels without any of the page's context.
+
+```
+Cards I'd like:
+
+SPECIAL EDITION II (20% off)
+  3x Sol Ring (TLE) #316
+
+Artifacts III (20% off)
+  1x Sol Ring (SCD) #276
+  1x Sol Ring (LCC) #313
+
+5 cards from 2 decks.
+```
+
+### Small things
+
+Adding from a result row swaps the button for a stepper in place, rather than redrawing
+the list -- browsing a deck can put a thousand rows on the page, and rebuilding all of
+them to change one number would lose the reader's place. Focus follows onto the control
+that replaced the one being pressed.
+
+Unreadable storage yields an empty cart rather than an exception, so a corrupt entry
+cannot stop the page from loading. If the clipboard is refused -- it is, outside a secure
+context -- the text appears in a selectable box instead of failing silently.
+
+---
+
 ## Prices
 
 Cards carry **market reference prices** from two vendors, taken from ManaBox's own
@@ -656,6 +732,8 @@ web/                    the site; copied verbatim into the build output
   prices.js             reference-price formatting and totals
   decklist.js           decklist and CSV parsing, and list matching
   filters.js            facets derived from results, and narrowing
+  sorting.js            result ordering, kept apart from narrowing
+  cart.js               the ask-the-seller list, and the message it produces
   preview.js            the hover/tap card panel
   config.js             repo details for the update button
 scripts/

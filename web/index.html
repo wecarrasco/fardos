@@ -23,6 +23,10 @@
               aria-selected="false" aria-controls="pane-browse" tabindex="-1">Browse</button>
       <button id="tab-list" class="tab" role="tab"
               aria-selected="false" aria-controls="pane-list" tabindex="-1">Decklist</button>
+      <button id="tab-cart" class="tab" role="tab"
+              aria-selected="false" aria-controls="pane-cart" tabindex="-1">
+        Cart <span id="cart-count" class="count" hidden></span>
+      </button>
     </div>
 
     <div id="pane-search" role="tabpanel" aria-labelledby="tab-search">
@@ -46,6 +50,18 @@
         <button id="check-list" type="button" class="btn">Check list</button>
         <button id="clear-list" type="button" class="btn secondary">Clear</button>
         <span id="list-note" class="status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div id="pane-cart" role="tabpanel" aria-labelledby="tab-cart" hidden>
+      <div class="listbar">
+        <button id="cart-copy" type="button" class="btn">Copy list</button>
+        <button id="cart-clear" type="button" class="btn secondary">Empty cart</button>
+        <label class="cart-opt">
+          <input id="cart-prices" type="checkbox">
+          include reference prices
+        </label>
+        <span id="cart-note" class="status" role="status" aria-live="polite"></span>
       </div>
     </div>
 
