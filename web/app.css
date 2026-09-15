@@ -456,6 +456,9 @@ footer a:hover { color: var(--link); }
 .cart-q { display: flex; align-items: baseline; gap: 7px; }
 .cart-q b { color: var(--accent); font-variant-numeric: tabular-nums; }
 .cart-name { font-weight: 650; font-size: 14px; }
+/* The name is a preview button here as it is in a result row, but it keeps the
+   cart's heavier weight rather than inheriting the row-level one. */
+.cart-name .name { font-weight: 650; }
 
 .cart-x {
   appearance: none; cursor: pointer; font: inherit; font-size: 15px; line-height: 1;

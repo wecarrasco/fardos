@@ -268,6 +268,15 @@ Artifacts III (20% off)
 5 cards from 2 decks.
 ```
 
+### The preview works here too
+
+Card names in the cart are the same preview anchors they are in a result row, so hovering
+or tapping one opens the panel with the picture, both reference prices and the other decks
+carrying that printing. Reviewing a list is exactly when you want to see what you picked,
+and the "also in another deck at 10% off" line is worth seeing before you send the
+message. Rows in the "No longer available" group are plain text, since there is no card
+left to show.
+
 ### Small things
 
 Adding from a result row swaps the button for a stepper in place, rather than redrawing

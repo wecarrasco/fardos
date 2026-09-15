@@ -1114,6 +1114,9 @@ function cartGroup(group) {
     const c = item.card;
     const short = item.issue === 'fewer';
     const n = Math.min(item.want, item.available);
+    // Registered the same way a result row is, so the preview panel opens here
+    // too: reviewing a list is exactly when you want to see what you picked.
+    const ref = rendered.push({ card: c, deckId: group.deckId }) - 1;
     return `
       <div class="cart-row${short ? ' is-short' : ''}">
         <div class="cart-q">
@@ -1122,7 +1125,11 @@ function cartGroup(group) {
           <b>${n}&times;</b>
         </div>
         <div>
-          <div class="cart-name">${esc(item.line.name)}${c.foil ? ' <span class="foil">FOIL</span>' : ''}</div>
+          <div class="cart-name">
+            <button type="button" class="name" data-card="${ref}"
+                    aria-expanded="false" aria-haspopup="dialog"
+                    title="Show ${esc(item.line.name)}">${esc(item.line.name)}</button>${c.foil ? '<span class="foil">FOIL</span>' : ''}
+          </div>
           <div class="setinfo">
             ${esc(c.setName ?? 'Unknown set')}${c.setId ? ` (${esc(c.setId.toUpperCase())})` : ''}
             ${c.collectorNumber ? ` #${esc(c.collectorNumber)}` : ''}
@@ -1151,6 +1158,7 @@ function cartGroup(group) {
 function renderCart() {
   if (!index) return;
   filtersEl.hidden = true;   // the cart has its own shape
+  rendered = [];             // refs are per-render; the preview reads them
 
   const resolved = resolveCart(cart, index);
   const gone = resolved.unavailable;
