@@ -12,9 +12,9 @@
     "serve:site": "python3 -m http.server 4173 --directory dist-site",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "scrape:linktree": "tsx src/cli/scrape-linktree.ts",
     "scrape:deck": "tsx src/cli/scrape-deck.ts",
-    "fixtures:update": "tsx scripts/update-fixtures.ts"
+    "fixtures:update": "tsx scripts/update-fixtures.ts",
+    "decks:update": "tsx scripts/update-decks.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

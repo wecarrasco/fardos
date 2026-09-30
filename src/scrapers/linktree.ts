@@ -1,6 +1,4 @@
 import * as cheerio from 'cheerio';
-import { fetchHtml } from './http.js';
-import { linktreeUrl } from '../config.js';
 import { log } from '../logger.js';
 
 /**
@@ -122,12 +120,12 @@ export function deckDiscount(link: Pick<LinktreeDeckLink, 'linkText' | 'category
 }
 
 /** Fetch and parse the configured Linktree page. */
-export async function scrapeLinktree(username?: string): Promise<LinktreeDeckLink[]> {
-  const url = linktreeUrl(username);
-  log.info(`fetching Linktree page`, { url });
-  const links = parseLinktree(await fetchHtml(url));
-  log.info(`found ${links.length} ManaBox deck links`, {
-    categories: new Set(links.map((l) => l.category ?? '(ungrouped)')).size,
-  });
-  return links;
-}
+/**
+ * There is deliberately no fetching function here.
+ *
+ * linktr.ee's robots.txt is `User-agent: *` -> `Disallow: /`, and since
+ * September 2026 it enforces that with HTTP 406 to datacentre traffic. The
+ * deck list is captured by a human from their own browser instead; see
+ * `scripts/update-decks.ts`. `parseLinktree()` above is unchanged and still
+ * does the parsing, so the fixture tests still cover the markup.
+ */

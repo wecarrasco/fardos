@@ -15,9 +15,11 @@ JSON index; GitHub Pages serves it; the browser does the searching.
 ## How it works
 
 ```
+decks.json  (the deck list, captured by hand — see below)
+  │
 GitHub Actions  (twice daily, or the "Update now" button)
-  ├─ runs the scrapers
-  ├─ writes index.json  (1.4 MB, 149 KB over the wire)
+  ├─ scrapes each ManaBox deck in the list
+  ├─ writes index.json  (1.8 MB, ~200 KB over the wire)
   └─ publishes to the gh-pages branch
 
 GitHub Pages
@@ -27,6 +29,13 @@ GitHub Pages
 Scraping happens at build time because it has to: neither `linktr.ee` nor `manabox.app`
 sends CORS headers, so a browser cannot fetch them. Once the index has loaded, every
 search runs in memory in a few milliseconds with no network at all.
+
+**The two sites are not treated the same, because they do not ask to be.** `manabox.app`
+permits crawling (`robots.txt`: `User-agent: *`, `Disallow:` — empty, meaning allow all),
+so its deck pages are fetched on every build. `linktr.ee` refuses it (`User-agent: *` →
+`Disallow: /`) and began enforcing that with HTTP 406 in September 2026. So the deck list
+is no longer fetched by anything; it is captured from a browser by a person. See
+[Refreshing the deck list](#refreshing-the-deck-list).
 
 ---
 
@@ -91,16 +100,41 @@ Three ways, all the same job:
   jobs as best-effort, so expect some drift.
 - **The Actions tab.** Run workflow, manually.
 
-Each run re-reads the Linktree page, re-scrapes every deck it lists, and republishes the
-index. The commit message on `gh-pages` records what changed, e.g.
+Each run reads `decks.json`, re-scrapes every deck it lists, and republishes the index.
+The commit message on `gh-pages` records what changed, e.g.
 `Index: 63 decks, 22968 cards, 2 added, 4 changed`.
+
+### Refreshing the deck list
+
+The data refreshes itself; the **list of decks** does not. When the seller adds a deck,
+capture it:
+
+1. Open the seller's Linktree in your browser and save the page
+   (File → Save Page As).
+2. `npm run decks:update -- ~/Downloads/saved-page.html`
+3. Commit the updated `decks.json` and push.
+
+It prints what moved — decks added, removed, and any whose discount changed — so the
+change is visible rather than silent. The same `parseLinktree()` the scraper always used
+does the parsing, so the fixture tests still cover the markup.
+
+**Why this step is manual.** `linktr.ee/robots.txt` is `User-agent: *` → `Disallow: /`,
+and since September 2026 it enforces that with HTTP 406 to datacentre traffic. A person
+opening a public page in their own browser is not an unnamed crawler; a twice-daily job
+is. So the fetching moved to the human and the parsing stayed in the code.
+
+**What goes wrong if you forget.** Nothing breaks. Decks already in the list keep
+updating on schedule; a deck added since the last capture is simply missing. After 30
+days the build logs a warning naming the capture date, so the staleness is stated rather
+than silent.
 
 ---
 
 ## Pointing it at a different seller
 
 Change `LINKTREE_USERNAME` in [`src/config.ts`](src/config.ts) (or set it as an
-environment variable), then run the workflow. That is the only change needed.
+environment variable), save that seller's Linktree page, and run
+`npm run decks:update -- <file>` to build the new `decks.json`.
 
 For a different repository, update [`web/config.js`](web/config.js) — `owner` and `repo`
 are what the update button calls.
@@ -122,7 +156,7 @@ npm run serve:site      # http://localhost:4173
 | `npm run serve:site` | Serve `dist-site/` locally |
 | `npm test` | Test suite (offline, ~1s) |
 | `npm run typecheck` | TypeScript check |
-| `npm run scrape:linktree` | Print discovered deck links (`--json` to pipe) |
+| `npm run decks:update -- <file.html>` | Refresh `decks.json` from a saved Linktree page |
 | `npm run scrape:deck -- <id>` | Print one parsed deck (`--json`) |
 | `npm run fixtures:update` | Re-download the saved test pages |
 

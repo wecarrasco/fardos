@@ -10,7 +10,8 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync, cpSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scrapeLinktree, deckDiscount } from '../src/scrapers/linktree.js';
+import { deckDiscount } from '../src/scrapers/linktree.js';
+import { loadDeckList } from '../src/decks.js';
 import { scrapeDeck, PRICE_VENDORS, type DeckSnapshot } from '../src/scrapers/manabox.js';
 import { sleep } from '../src/scrapers/http.js';
 import { config, linktreeUrl } from '../src/config.js';
@@ -64,14 +65,16 @@ interface IndexDeck {
 
 function toIndexDeck(
   snapshot: DeckSnapshot,
-  link: { category: string | null; linkText: string },
+  link: { category: string | null; linkText: string; discount?: number | null },
 ): IndexDeck {
   return {
     id: snapshot.deckId,
     name: snapshot.name,
     url: snapshot.url,
     category: link.category,
-    discount: deckDiscount(link),
+    // The deck list resolves the discount at capture time with the same
+    // parser; falling back keeps older lists and the fixture tests working.
+    discount: link.discount !== undefined ? link.discount : deckDiscount(link),
     updatedAt: snapshot.lastUpdated,
     cardCount: snapshot.cards.reduce((n, c) => n + c.quantity, 0),
     cards: snapshot.cards.map((c) => ({
@@ -124,14 +127,10 @@ if (noScrape) {
   process.exit(0);
 }
 
-const links = await scrapeLinktree();
-
-if (links.length === 0) {
-  // Publishing an empty index would wipe a working site. Fail the build so the
-  // previously published one stays up.
-  log.anomaly('Linktree returned 0 decks -- refusing to publish an empty index');
-  process.exit(1);
-}
+// Read rather than scraped: see src/decks.ts for why linktr.ee is no longer
+// fetched. loadDeckList throws on a missing, empty or malformed list, so the
+// previously published index stays up rather than being replaced with nothing.
+const links = loadDeckList(root).decks;
 
 const decks: IndexDeck[] = [];
 let failed = 0;
