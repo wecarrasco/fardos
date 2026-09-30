@@ -1,21 +1,549 @@
 {
-  "capturedAt": "2026-09-27",
+  "capturedAt": "2026-09-30",
   "source": "https://linktr.ee/ChelitoSAF",
   "decks": [
+    {
+      "deckId": "ry-f5mDXQVSjnVwfQWxQjw",
+      "url": "https://manabox.app/decks/ry-f5mDXQVSjnVwfQWxQjw",
+      "linkText": "Commander Staples 🗝️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 0,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTfnXDdm23JbMC3tafzQ",
+      "url": "https://manabox.app/decks/AZuTfnXDdm23JbMC3tafzQ",
+      "linkText": "Red ♥️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 1,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTiFzxc-KYX6JK094MGw",
+      "url": "https://manabox.app/decks/AZuTiFzxc-KYX6JK094MGw",
+      "linkText": "White 🤍",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 2,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTf96qf4CQH_ijZa-XXg",
+      "url": "https://manabox.app/decks/AZuTf96qf4CQH_ijZa-XXg",
+      "linkText": "Black 🖤",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 3,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTgwWceliE24z5ocTKFg",
+      "url": "https://manabox.app/decks/AZuTgwWceliE24z5ocTKFg",
+      "linkText": "Green 💚",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 4,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTgFBtcQ2J8ohyMEadqw",
+      "url": "https://manabox.app/decks/AZuTgFBtcQ2J8ohyMEadqw",
+      "linkText": "Blue 💙",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 5,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTf10ZdEyuaztUGFSbng",
+      "url": "https://manabox.app/decks/AZuTf10ZdEyuaztUGFSbng",
+      "linkText": "Multicolor 🌈",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 6,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv59OZ1cSCQuZ9xzcwhOw",
+      "url": "https://manabox.app/decks/AZv59OZ1cSCQuZ9xzcwhOw",
+      "linkText": "Multicolor II 🎨",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 7,
+      "discount": 30
+    },
+    {
+      "deckId": "AZ06HET7eVau6GO6oJb4gg",
+      "url": "https://manabox.app/decks/AZ06HET7eVau6GO6oJb4gg",
+      "linkText": "Multicolor III 🎭",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 8,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuUUjJWcx2hz61rSRqO4A",
+      "url": "https://manabox.app/decks/AZuUUjJWcx2hz61rSRqO4A",
+      "linkText": "Instant Magic 🌩️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 9,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv1X8bgduqctPZN1s_9og",
+      "url": "https://manabox.app/decks/AZv1X8bgduqctPZN1s_9og",
+      "linkText": "Instant Magic II ⛈️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 10,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuUbkMXcKGXQouujacEXg",
+      "url": "https://manabox.app/decks/AZuUbkMXcKGXQouujacEXg",
+      "linkText": "Sorcery Magic ✨",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 11,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv1YHlkf-S9HBmus45gMw",
+      "url": "https://manabox.app/decks/AZv1YHlkf-S9HBmus45gMw",
+      "linkText": "Sorcery Magic II ⭐",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 12,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuTke7meNGmIc6qyf4_iQ",
+      "url": "https://manabox.app/decks/AZuTke7meNGmIc6qyf4_iQ",
+      "linkText": "Artifacts 📻",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 13,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv1XnEhchq5DLGqwDnr-A",
+      "url": "https://manabox.app/decks/AZv1XnEhchq5DLGqwDnr-A",
+      "linkText": "Artifacts II 📺",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 14,
+      "discount": 30
+    },
+    {
+      "deckId": "AZ06HfZ9daqNrBHL_bhaeQ",
+      "url": "https://manabox.app/decks/AZ06HfZ9daqNrBHL_bhaeQ",
+      "linkText": "Artifacts III ☎️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 15,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuUgp-2cgiCMFOS0e4b9w",
+      "url": "https://manabox.app/decks/AZuUgp-2cgiCMFOS0e4b9w",
+      "linkText": "Enchantments 🧙‍♀️",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 16,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv3GQbCeLCUi0Gz993rKA",
+      "url": "https://manabox.app/decks/AZv3GQbCeLCUi0Gz993rKA",
+      "linkText": "Enchantments II 🔮",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 17,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuUjWsGcwim50uqYSkISg",
+      "url": "https://manabox.app/decks/AZuUjWsGcwim50uqYSkISg",
+      "linkText": "Lands 🌎",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 18,
+      "discount": 30
+    },
+    {
+      "deckId": "AZv_-gmEdX2fCVuHEwKHhQ",
+      "url": "https://manabox.app/decks/AZv_-gmEdX2fCVuHEwKHhQ",
+      "linkText": "Lands II 🌍",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 19,
+      "discount": 30
+    },
+    {
+      "deckId": "AZ06Hrtqfiey3QA-8IPRMw",
+      "url": "https://manabox.app/decks/AZ06Hrtqfiey3QA-8IPRMw",
+      "linkText": "Lands III 🌏",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 20,
+      "discount": 30
+    },
+    {
+      "deckId": "AZuds7L2dtCi-pYNdTmzMg",
+      "url": "https://manabox.app/decks/AZuds7L2dtCi-pYNdTmzMg",
+      "linkText": "TOKENS 🪙",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 21,
+      "discount": 30
+    },
+    {
+      "deckId": "AZybRWbBdqenceHIiwIBOA",
+      "url": "https://manabox.app/decks/AZybRWbBdqenceHIiwIBOA",
+      "linkText": "TOKENS II 💰",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 22,
+      "discount": 30
+    },
+    {
+      "deckId": "AZudtDc5fTetgH8MRlO1OQ",
+      "url": "https://manabox.app/decks/AZudtDc5fTetgH8MRlO1OQ",
+      "linkText": "Basic Lands (Full-Art) 🌳",
+      "category": "LINKS CLÁSICOS DE SAF 📎 (30% OFF)",
+      "position": 23,
+      "discount": 30
+    },
+    {
+      "deckId": "AZ-ZHC0ceZ6ZsPDCbYzXgw",
+      "url": "https://manabox.app/decks/AZ-ZHC0ceZ6ZsPDCbYzXgw",
+      "linkText": "Marvel Jumpstart 🏀",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 24,
+      "discount": 20
+    },
+    {
+      "deckId": "AZuTeFm6d4CvJaGQ5VrF9Q",
+      "url": "https://manabox.app/decks/AZuTeFm6d4CvJaGQ5VrF9Q",
+      "linkText": "SECRET LAIR 🤫",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 25,
+      "discount": 20
+    },
+    {
+      "deckId": "AZuTeaPLc-Wnheve9YF77w",
+      "url": "https://manabox.app/decks/AZuTeaPLc-Wnheve9YF77w",
+      "linkText": "SPECIAL EDITION 💎",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 26,
+      "discount": 20
+    },
+    {
+      "deckId": "AZv1YSaXdSGHoMQAgfVviQ",
+      "url": "https://manabox.app/decks/AZv1YSaXdSGHoMQAgfVviQ",
+      "linkText": "SPECIAL EDITION II 💍",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 27,
+      "discount": 20
+    },
+    {
+      "deckId": "AaDeubA0daqW-BN0PHZ3OQ",
+      "url": "https://manabox.app/decks/AaDeubA0daqW-BN0PHZ3OQ",
+      "linkText": "Cartas Nuevas/Octubre 🎃",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 28,
+      "discount": 20
+    },
+    {
+      "deckId": "AZsDhy6xfOuGGDe_ec8uKA",
+      "url": "https://manabox.app/decks/AZsDhy6xfOuGGDe_ec8uKA",
+      "linkText": "Final Fantasy: Special Edition ⚔️",
+      "category": "LINKS 20% de DESCUENTO 🛒",
+      "position": 29,
+      "discount": 20
+    },
+    {
+      "deckId": "AaDyDjF5fz6uXHGwPEckGw",
+      "url": "https://manabox.app/decks/AaDyDjF5fz6uXHGwPEckGw",
+      "linkText": "Wretched Ranks 🧟",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 30,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDyDh9lf_23Lhw8Sq7VyA",
+      "url": "https://manabox.app/decks/AaDyDh9lf_23Lhw8Sq7VyA",
+      "linkText": "Reign of Dragons 🐉",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 31,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDyDfV1e0GAg9Q51Gq6Wg",
+      "url": "https://manabox.app/decks/AaDyDfV1e0GAg9Q51Gq6Wg",
+      "linkText": "Calling All Angels 👼🏻",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 32,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDyDgIFdXKrMVZweyT8cw",
+      "url": "https://manabox.app/decks/AaDyDgIFdXKrMVZweyT8cw",
+      "linkText": "Keen Engineering 🤖",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 33,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDyDiiueXW6NTXBKsoNUw",
+      "url": "https://manabox.app/decks/AaDyDiiueXW6NTXBKsoNUw",
+      "linkText": "Tramplesaurus Rex 🦖",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 34,
+      "discount": 10
+    },
+    {
+      "deckId": "AZ8TxIFrcJi3IDG0GGUYcw",
+      "url": "https://manabox.app/decks/AZ8TxIFrcJi3IDG0GGUYcw",
+      "linkText": "Avengers Assemble 🇺🇲",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 35,
+      "discount": 10
+    },
+    {
+      "deckId": "AZ8TxJ24d3i5fhxs9jtlqw",
+      "url": "https://manabox.app/decks/AZ8TxJ24d3i5fhxs9jtlqw",
+      "linkText": "The Fantastic Four 4️⃣",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 36,
+      "discount": 10
+    },
+    {
+      "deckId": "AZ8TxKkLcESu9O8WVbPhJQ",
+      "url": "https://manabox.app/decks/AZ8TxKkLcESu9O8WVbPhJQ",
+      "linkText": "Wakanda Forever 🐯",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 37,
+      "discount": 10
+    },
+    {
+      "deckId": "AZ8TxJAfd4iJ_nDf119CjQ",
+      "url": "https://manabox.app/decks/AZ8TxJAfd4iJ_nDf119CjQ",
+      "linkText": "Doom Prevails 😈",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 38,
+      "discount": 10
+    },
+    {
+      "deckId": "AZyzQsAgdzOJHB4jyQGUSg",
+      "url": "https://manabox.app/decks/AZyzQsAgdzOJHB4jyQGUSg",
+      "linkText": "Turtle Power! 🥋",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 39,
+      "discount": 10
+    },
     {
       "deckId": "AaC5fKZvd3eYLfsa1yAjkA",
       "url": "https://manabox.app/decks/AaC5fKZvd3eYLfsa1yAjkA",
       "linkText": "Multiverse Reforged 🍪",
-      "category": null,
-      "position": 0,
-      "discount": null
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 40,
+      "discount": 10
+    },
+    {
+      "deckId": "AZukxrzVeR6aLWaYKaHH4A",
+      "url": "https://manabox.app/decks/AZukxrzVeR6aLWaYKaHH4A",
+      "linkText": "Lorwyn: Commander 🍄",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 41,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDK5Dr1epG9cFqbjhu07g",
+      "url": "https://manabox.app/decks/AaDK5Dr1epG9cFqbjhu07g",
+      "linkText": "Final Fantasy : Limit Break 🗡️",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 42,
+      "discount": 10
+    },
+    {
+      "deckId": "AaDK5FFKeUmO41Ig4W7PsQ",
+      "url": "https://manabox.app/decks/AaDK5FFKeUmO41Ig4W7PsQ",
+      "linkText": "Final Fantasy : Revival Trance 🗡️",
+      "category": "SAF COMMANDER ✊🏻 (10% OFF)",
+      "position": 43,
+      "discount": 10
     },
     {
       "deckId": "AZ8joNrvdSCBiABPA9Krmg",
       "url": "https://manabox.app/decks/AZ8joNrvdSCBiABPA9Krmg",
       "linkText": "The Hobbit 🪨",
-      "category": null,
-      "position": 1,
+      "category": "SAF STANDARD 🎲",
+      "position": 44,
+      "discount": null
+    },
+    {
+      "deckId": "AZ_2D3u8e3-e3sN9cIoCNQ",
+      "url": "https://manabox.app/decks/AZ_2D3u8e3-e3sN9cIoCNQ",
+      "linkText": "The Hobbit/Commons ⛰️",
+      "category": "SAF STANDARD 🎲",
+      "position": 45,
+      "discount": null
+    },
+    {
+      "deckId": "AZ_2DxJdfuKEQWHkS6qGIw",
+      "url": "https://manabox.app/decks/AZ_2DxJdfuKEQWHkS6qGIw",
+      "linkText": "The Hobbit/Uncommons 🏔️",
+      "category": "SAF STANDARD 🎲",
+      "position": 46,
+      "discount": null
+    },
+    {
+      "deckId": "AZyybBTycBaFskFGGNngCA",
+      "url": "https://manabox.app/decks/AZyybBTycBaFskFGGNngCA",
+      "linkText": "Ninja Turtles: Commons & Uncommons 🍕",
+      "category": "SAF STANDARD 🎲",
+      "position": 47,
+      "discount": null
+    },
+    {
+      "deckId": "AZuTdLPMdI-34YJwWyocUw",
+      "url": "https://manabox.app/decks/AZuTdLPMdI-34YJwWyocUw",
+      "linkText": "Tarkir Dragonstorm 🐲",
+      "category": "SAF STANDARD 🎲",
+      "position": 48,
+      "discount": null
+    },
+    {
+      "deckId": "AZyyazl5criePRPxMW6oRQ",
+      "url": "https://manabox.app/decks/AZyyazl5criePRPxMW6oRQ",
+      "linkText": "Ninja Turtles 🥷",
+      "category": "SAF STANDARD 🎲",
+      "position": 49,
+      "discount": null
+    },
+    {
+      "deckId": "AZ5bYPxNfJm9OZXjsUyPXA",
+      "url": "https://manabox.app/decks/AZ5bYPxNfJm9OZXjsUyPXA",
+      "linkText": "Strixhaven 🦉",
+      "category": "SAF STANDARD 🎲",
+      "position": 50,
+      "discount": null
+    },
+    {
+      "deckId": "AZuTdnigc8qKKK1xhRlyHg",
+      "url": "https://manabox.app/decks/AZuTdnigc8qKKK1xhRlyHg",
+      "linkText": "Lorwyn Eclipsed 🌓",
+      "category": "SAF STANDARD 🎲",
+      "position": 51,
+      "discount": null
+    },
+    {
+      "deckId": "AZukzLYMcay_B6DLmNPhAA",
+      "url": "https://manabox.app/decks/AZukzLYMcay_B6DLmNPhAA",
+      "linkText": "Lorwyn: Uncommons 🌝",
+      "category": "SAF STANDARD 🎲",
+      "position": 52,
+      "discount": null
+    },
+    {
+      "deckId": "AZuzDh7GcoKapOac5R0mAg",
+      "url": "https://manabox.app/decks/AZuzDh7GcoKapOac5R0mAg",
+      "linkText": "Lorwyn: Common Cards 🌚",
+      "category": "SAF STANDARD 🎲",
+      "position": 53,
+      "discount": null
+    },
+    {
+      "deckId": "AZuO6_-Qd42_dMGa0VM-QQ",
+      "url": "https://manabox.app/decks/AZuO6_-Qd42_dMGa0VM-QQ",
+      "linkText": "Avatar: The Last Airbender🍃",
+      "category": "SAF STANDARD 🎲",
+      "position": 54,
+      "discount": null
+    },
+    {
+      "deckId": "AZutuGEtf_OUe2tvpLHkRw",
+      "url": "https://manabox.app/decks/AZutuGEtf_OUe2tvpLHkRw",
+      "linkText": "Avatar: Common Cards 🌪️",
+      "category": "SAF STANDARD 🎲",
+      "position": 55,
+      "discount": null
+    },
+    {
+      "deckId": "AZuO7CN9eXSa-e1CRS_NGQ",
+      "url": "https://manabox.app/decks/AZuO7CN9eXSa-e1CRS_NGQ",
+      "linkText": "Avatar: Uncommons 🌬️",
+      "category": "SAF STANDARD 🎲",
+      "position": 56,
+      "discount": null
+    },
+    {
+      "deckId": "AZuTdQBJe4yS82hNSz7LYw",
+      "url": "https://manabox.app/decks/AZuTdQBJe4yS82hNSz7LYw",
+      "linkText": "Edge of Eternities 🪐",
+      "category": "SAF STANDARD 🎲",
+      "position": 57,
+      "discount": null
+    },
+    {
+      "deckId": "AZyEAIGEc0Gxj4beu43DnA",
+      "url": "https://manabox.app/decks/AZyEAIGEc0Gxj4beu43DnA",
+      "linkText": "Edge of Eternities : Commons 🌌",
+      "category": "SAF STANDARD 🎲",
+      "position": 58,
+      "discount": null
+    },
+    {
+      "deckId": "AZuUUvIZf_CS-zAa24Ikbg",
+      "url": "https://manabox.app/decks/AZuUUvIZf_CS-zAa24Ikbg",
+      "linkText": "Edge of Eternities: Uncommons 🌠",
+      "category": "SAF STANDARD 🎲",
+      "position": 59,
+      "discount": null
+    },
+    {
+      "deckId": "AZuUYiz0coWRw8VJtQGbSw",
+      "url": "https://manabox.app/decks/AZuUYiz0coWRw8VJtQGbSw",
+      "linkText": "Final Fantasy: Uncommons 🛡️",
+      "category": "SAF STANDARD 🎲",
+      "position": 60,
+      "discount": null
+    },
+    {
+      "deckId": "AZuTdNz_czW7oeC9gDDpVg",
+      "url": "https://manabox.app/decks/AZuTdNz_czW7oeC9gDDpVg",
+      "linkText": "Final Fantasy 🗡️",
+      "category": "SAF STANDARD 🎲",
+      "position": 61,
+      "discount": null
+    },
+    {
+      "deckId": "AZuTdEn3fi6mIWYWMGY11g",
+      "url": "https://manabox.app/decks/AZuTdEn3fi6mIWYWMGY11g",
+      "linkText": "Aetherdrift 🏁",
+      "category": "SAF STANDARD 🎲",
+      "position": 62,
+      "discount": null
+    },
+    {
+      "deckId": "AZvXNEhHexaDrrDyBV6jbQ",
+      "url": "https://manabox.app/decks/AZvXNEhHexaDrrDyBV6jbQ",
+      "linkText": "Aetherdrift: Uncommons 🏎️",
+      "category": "SAF STANDARD 🎲",
+      "position": 63,
+      "discount": null
+    },
+    {
+      "deckId": "AZ-Zm9OTfVKxgc6Vjhf4jg",
+      "url": "https://manabox.app/decks/AZ-Zm9OTfVKxgc6Vjhf4jg",
+      "linkText": "MARVEL : UNCOMMONS 🦈",
+      "category": "SAF STANDARD 🎲",
+      "position": 64,
+      "discount": null
+    },
+    {
+      "deckId": "AZ8PGV1zczSrlV3RpmQT8g",
+      "url": "https://manabox.app/decks/AZ8PGV1zczSrlV3RpmQT8g",
+      "linkText": "MARVEL : COMMONS ⚡",
+      "category": "SAF STANDARD 🎲",
+      "position": 65,
+      "discount": null
+    },
+    {
+      "deckId": "AZ8Ow6ICcX-yXhTGAbEzUQ",
+      "url": "https://manabox.app/decks/AZ8Ow6ICcX-yXhTGAbEzUQ",
+      "linkText": "SUPER HEROES 🌟",
+      "category": "SAF STANDARD 🎲",
+      "position": 66,
+      "discount": null
+    },
+    {
+      "deckId": "AaCKngrDfiilbUTqS1uw8A",
+      "url": "https://manabox.app/decks/AaCKngrDfiilbUTqS1uw8A",
+      "linkText": "Spider-Man 🕸️",
+      "category": "SAF STANDARD 🎲",
+      "position": 67,
       "discount": null
     },
     {
@@ -23,480 +551,8 @@
       "url": "https://manabox.app/decks/AZ_RG1TNdsG5sWmkbXJ3gA",
       "linkText": "SAF/ON THE ROAD 🛣️",
       "category": null,
-      "position": 2,
+      "position": 68,
       "discount": null
-    },
-    {
-      "deckId": "AZ_2D3u8e3-e3sN9cIoCNQ",
-      "url": "https://manabox.app/decks/AZ_2D3u8e3-e3sN9cIoCNQ",
-      "linkText": "The Hobbit/Commons (20% OFF) 🐻",
-      "category": null,
-      "position": 3,
-      "discount": 20
-    },
-    {
-      "deckId": "AZ_2DxJdfuKEQWHkS6qGIw",
-      "url": "https://manabox.app/decks/AZ_2DxJdfuKEQWHkS6qGIw",
-      "linkText": "The Hobbit/Uncommons (20% OFF) 🐻",
-      "category": null,
-      "position": 4,
-      "discount": 20
-    },
-    {
-      "deckId": "ry-f5mDXQVSjnVwfQWxQjw",
-      "url": "https://manabox.app/decks/ry-f5mDXQVSjnVwfQWxQjw",
-      "linkText": "Commander Staples 🗝️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 5,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTeaPLc-Wnheve9YF77w",
-      "url": "https://manabox.app/decks/AZuTeaPLc-Wnheve9YF77w",
-      "linkText": "SPECIAL EDITION 💎",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 6,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv1YSaXdSGHoMQAgfVviQ",
-      "url": "https://manabox.app/decks/AZv1YSaXdSGHoMQAgfVviQ",
-      "linkText": "SPECIAL EDITION II 💍",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 7,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTfnXDdm23JbMC3tafzQ",
-      "url": "https://manabox.app/decks/AZuTfnXDdm23JbMC3tafzQ",
-      "linkText": "Red ♥️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 8,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTiFzxc-KYX6JK094MGw",
-      "url": "https://manabox.app/decks/AZuTiFzxc-KYX6JK094MGw",
-      "linkText": "White 🤍",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 9,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTf96qf4CQH_ijZa-XXg",
-      "url": "https://manabox.app/decks/AZuTf96qf4CQH_ijZa-XXg",
-      "linkText": "Black 🖤",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 10,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTgwWceliE24z5ocTKFg",
-      "url": "https://manabox.app/decks/AZuTgwWceliE24z5ocTKFg",
-      "linkText": "Green 💚",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 11,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTgFBtcQ2J8ohyMEadqw",
-      "url": "https://manabox.app/decks/AZuTgFBtcQ2J8ohyMEadqw",
-      "linkText": "Blue 💙",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 12,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTf10ZdEyuaztUGFSbng",
-      "url": "https://manabox.app/decks/AZuTf10ZdEyuaztUGFSbng",
-      "linkText": "Multicolor 🌈",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 13,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv59OZ1cSCQuZ9xzcwhOw",
-      "url": "https://manabox.app/decks/AZv59OZ1cSCQuZ9xzcwhOw",
-      "linkText": "Multicolor II 🎨",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 14,
-      "discount": 20
-    },
-    {
-      "deckId": "AZ06HET7eVau6GO6oJb4gg",
-      "url": "https://manabox.app/decks/AZ06HET7eVau6GO6oJb4gg",
-      "linkText": "Multicolor III 🎭",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 15,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuUUjJWcx2hz61rSRqO4A",
-      "url": "https://manabox.app/decks/AZuUUjJWcx2hz61rSRqO4A",
-      "linkText": "Instant Magic 🌩️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 16,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv1X8bgduqctPZN1s_9og",
-      "url": "https://manabox.app/decks/AZv1X8bgduqctPZN1s_9og",
-      "linkText": "Instant Magic II ⛈️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 17,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuUbkMXcKGXQouujacEXg",
-      "url": "https://manabox.app/decks/AZuUbkMXcKGXQouujacEXg",
-      "linkText": "Sorcery Magic ✨",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 18,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv1YHlkf-S9HBmus45gMw",
-      "url": "https://manabox.app/decks/AZv1YHlkf-S9HBmus45gMw",
-      "linkText": "Sorcery Magic II ⭐",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 19,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTke7meNGmIc6qyf4_iQ",
-      "url": "https://manabox.app/decks/AZuTke7meNGmIc6qyf4_iQ",
-      "linkText": "Artifacts 📻",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 20,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv1XnEhchq5DLGqwDnr-A",
-      "url": "https://manabox.app/decks/AZv1XnEhchq5DLGqwDnr-A",
-      "linkText": "Artifacts II 📺",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 21,
-      "discount": 20
-    },
-    {
-      "deckId": "AZ06HfZ9daqNrBHL_bhaeQ",
-      "url": "https://manabox.app/decks/AZ06HfZ9daqNrBHL_bhaeQ",
-      "linkText": "Artifacts III ☎️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 22,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuUgp-2cgiCMFOS0e4b9w",
-      "url": "https://manabox.app/decks/AZuUgp-2cgiCMFOS0e4b9w",
-      "linkText": "Enchantments 🧙‍♀️",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 23,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv3GQbCeLCUi0Gz993rKA",
-      "url": "https://manabox.app/decks/AZv3GQbCeLCUi0Gz993rKA",
-      "linkText": "Enchantments II 🔮",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 24,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuUjWsGcwim50uqYSkISg",
-      "url": "https://manabox.app/decks/AZuUjWsGcwim50uqYSkISg",
-      "linkText": "Lands 🌎",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 25,
-      "discount": 20
-    },
-    {
-      "deckId": "AZv_-gmEdX2fCVuHEwKHhQ",
-      "url": "https://manabox.app/decks/AZv_-gmEdX2fCVuHEwKHhQ",
-      "linkText": "Lands II 🌍",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 26,
-      "discount": 20
-    },
-    {
-      "deckId": "AZ06Hrtqfiey3QA-8IPRMw",
-      "url": "https://manabox.app/decks/AZ06Hrtqfiey3QA-8IPRMw",
-      "linkText": "Lands III 🌏",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 27,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuds7L2dtCi-pYNdTmzMg",
-      "url": "https://manabox.app/decks/AZuds7L2dtCi-pYNdTmzMg",
-      "linkText": "TOKENS 🪙",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 28,
-      "discount": 20
-    },
-    {
-      "deckId": "AZybRWbBdqenceHIiwIBOA",
-      "url": "https://manabox.app/decks/AZybRWbBdqenceHIiwIBOA",
-      "linkText": "TOKENS II 💰",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 29,
-      "discount": 20
-    },
-    {
-      "deckId": "AZudtDc5fTetgH8MRlO1OQ",
-      "url": "https://manabox.app/decks/AZudtDc5fTetgH8MRlO1OQ",
-      "linkText": "Basic Lands (Full-Art) 🌳",
-      "category": "LINKS CLÁSICOS DE SAF 📎 (20% OFF)",
-      "position": 30,
-      "discount": 20
-    },
-    {
-      "deckId": "AZuTeFm6d4CvJaGQ5VrF9Q",
-      "url": "https://manabox.app/decks/AZuTeFm6d4CvJaGQ5VrF9Q",
-      "linkText": "SECRET LAIR 🤫",
-      "category": "LINKS 10% de DESCUENTO",
-      "position": 31,
-      "discount": 10
-    },
-    {
-      "deckId": "AZyzQsAgdzOJHB4jyQGUSg",
-      "url": "https://manabox.app/decks/AZyzQsAgdzOJHB4jyQGUSg",
-      "linkText": "Turtle Power! 🥋",
-      "category": "LINKS 10% de DESCUENTO",
-      "position": 32,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ_b7h_bfcuaP_uVxWarlg",
-      "url": "https://manabox.app/decks/AZ_b7h_bfcuaP_uVxWarlg",
-      "linkText": "Fetchs & Shocks 🗽",
-      "category": "LINKS 10% de DESCUENTO",
-      "position": 33,
-      "discount": 10
-    },
-    {
-      "deckId": "AZukxrzVeR6aLWaYKaHH4A",
-      "url": "https://manabox.app/decks/AZukxrzVeR6aLWaYKaHH4A",
-      "linkText": "Lorwyn: Commander 🍄",
-      "category": "LINKS 10% de DESCUENTO",
-      "position": 34,
-      "discount": 10
-    },
-    {
-      "deckId": "AZsDhy6xfOuGGDe_ec8uKA",
-      "url": "https://manabox.app/decks/AZsDhy6xfOuGGDe_ec8uKA",
-      "linkText": "Final Fantasy: Special Edition ⚔️",
-      "category": "LINKS 10% de DESCUENTO",
-      "position": 35,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8TxIFrcJi3IDG0GGUYcw",
-      "url": "https://manabox.app/decks/AZ8TxIFrcJi3IDG0GGUYcw",
-      "linkText": "Avengers Assemble 🇺🇲",
-      "category": "MARVEL — 10% OFF",
-      "position": 36,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8TxJ24d3i5fhxs9jtlqw",
-      "url": "https://manabox.app/decks/AZ8TxJ24d3i5fhxs9jtlqw",
-      "linkText": "The Fantastic Four 4️⃣",
-      "category": "MARVEL — 10% OFF",
-      "position": 37,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8TxKkLcESu9O8WVbPhJQ",
-      "url": "https://manabox.app/decks/AZ8TxKkLcESu9O8WVbPhJQ",
-      "linkText": "Wakanda Forever 🐯",
-      "category": "MARVEL — 10% OFF",
-      "position": 38,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8TxJAfd4iJ_nDf119CjQ",
-      "url": "https://manabox.app/decks/AZ8TxJAfd4iJ_nDf119CjQ",
-      "linkText": "Doom Prevails 😈",
-      "category": "MARVEL — 10% OFF",
-      "position": 39,
-      "discount": 10
-    },
-    {
-      "deckId": "AaCKngrDfiilbUTqS1uw8A",
-      "url": "https://manabox.app/decks/AaCKngrDfiilbUTqS1uw8A",
-      "linkText": "Spider-Man 🕸️",
-      "category": "MARVEL — 10% OFF",
-      "position": 40,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8Ow6ICcX-yXhTGAbEzUQ",
-      "url": "https://manabox.app/decks/AZ8Ow6ICcX-yXhTGAbEzUQ",
-      "linkText": "SUPER HEROES 🌟",
-      "category": "MARVEL — 10% OFF",
-      "position": 41,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ-ZHC0ceZ6ZsPDCbYzXgw",
-      "url": "https://manabox.app/decks/AZ-ZHC0ceZ6ZsPDCbYzXgw",
-      "linkText": "Marvel Jumpstart 🏀",
-      "category": "MARVEL — 10% OFF",
-      "position": 42,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ8PGV1zczSrlV3RpmQT8g",
-      "url": "https://manabox.app/decks/AZ8PGV1zczSrlV3RpmQT8g",
-      "linkText": "MARVEL : COMMONS (20% OFF) ⚡",
-      "category": "MARVEL — 10% OFF",
-      "position": 43,
-      "discount": 20
-    },
-    {
-      "deckId": "AZ-Zm9OTfVKxgc6Vjhf4jg",
-      "url": "https://manabox.app/decks/AZ-Zm9OTfVKxgc6Vjhf4jg",
-      "linkText": "MARVEL : UNCOMMONS (20% OFF) 🦈",
-      "category": "MARVEL — 10% OFF",
-      "position": 44,
-      "discount": 20
-    },
-    {
-      "deckId": "AZyybBTycBaFskFGGNngCA",
-      "url": "https://manabox.app/decks/AZyybBTycBaFskFGGNngCA",
-      "linkText": "Ninja Turtles: Commons & Uncommons 🍕",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 45,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuTdLPMdI-34YJwWyocUw",
-      "url": "https://manabox.app/decks/AZuTdLPMdI-34YJwWyocUw",
-      "linkText": "Tarkir Dragonstorm 🐲",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 46,
-      "discount": 10
-    },
-    {
-      "deckId": "AZyyazl5criePRPxMW6oRQ",
-      "url": "https://manabox.app/decks/AZyyazl5criePRPxMW6oRQ",
-      "linkText": "Ninja Turtles 🥷",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 47,
-      "discount": 10
-    },
-    {
-      "deckId": "AZ5bYPxNfJm9OZXjsUyPXA",
-      "url": "https://manabox.app/decks/AZ5bYPxNfJm9OZXjsUyPXA",
-      "linkText": "Strixhaven 🦉",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 48,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuTdnigc8qKKK1xhRlyHg",
-      "url": "https://manabox.app/decks/AZuTdnigc8qKKK1xhRlyHg",
-      "linkText": "Lorwyn Eclipsed 🌓",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 49,
-      "discount": 10
-    },
-    {
-      "deckId": "AZukzLYMcay_B6DLmNPhAA",
-      "url": "https://manabox.app/decks/AZukzLYMcay_B6DLmNPhAA",
-      "linkText": "Lorwyn: Uncommons 🌝",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 50,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuzDh7GcoKapOac5R0mAg",
-      "url": "https://manabox.app/decks/AZuzDh7GcoKapOac5R0mAg",
-      "linkText": "Lorwyn: Common Cards 🌚",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 51,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuO6_-Qd42_dMGa0VM-QQ",
-      "url": "https://manabox.app/decks/AZuO6_-Qd42_dMGa0VM-QQ",
-      "linkText": "Avatar: The Last Airbender🍃",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 52,
-      "discount": 10
-    },
-    {
-      "deckId": "AZutuGEtf_OUe2tvpLHkRw",
-      "url": "https://manabox.app/decks/AZutuGEtf_OUe2tvpLHkRw",
-      "linkText": "Avatar: Common Cards 🌪️",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 53,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuO7CN9eXSa-e1CRS_NGQ",
-      "url": "https://manabox.app/decks/AZuO7CN9eXSa-e1CRS_NGQ",
-      "linkText": "Avatar: Uncommons 🌬️",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 54,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuTdQBJe4yS82hNSz7LYw",
-      "url": "https://manabox.app/decks/AZuTdQBJe4yS82hNSz7LYw",
-      "linkText": "Edge of Eternities 🪐",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 55,
-      "discount": 10
-    },
-    {
-      "deckId": "AZyEAIGEc0Gxj4beu43DnA",
-      "url": "https://manabox.app/decks/AZyEAIGEc0Gxj4beu43DnA",
-      "linkText": "Edge of Eternities : Commons 🌌",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 56,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuUUvIZf_CS-zAa24Ikbg",
-      "url": "https://manabox.app/decks/AZuUUvIZf_CS-zAa24Ikbg",
-      "linkText": "Edge of Eternities: Uncommons 🌠",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 57,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuUYiz0coWRw8VJtQGbSw",
-      "url": "https://manabox.app/decks/AZuUYiz0coWRw8VJtQGbSw",
-      "linkText": "Final Fantasy: Uncommons 🛡️",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 58,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuTdNz_czW7oeC9gDDpVg",
-      "url": "https://manabox.app/decks/AZuTdNz_czW7oeC9gDDpVg",
-      "linkText": "Final Fantasy 🗡️",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 59,
-      "discount": 10
-    },
-    {
-      "deckId": "AZuTdEn3fi6mIWYWMGY11g",
-      "url": "https://manabox.app/decks/AZuTdEn3fi6mIWYWMGY11g",
-      "linkText": "Aetherdrift 🏁",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 60,
-      "discount": 10
-    },
-    {
-      "deckId": "AZvXNEhHexaDrrDyBV6jbQ",
-      "url": "https://manabox.app/decks/AZvXNEhHexaDrrDyBV6jbQ",
-      "linkText": "Aetherdrift: Uncommons 🏎️",
-      "category": "SAF STANDARD 🎲 (10% OFF)",
-      "position": 61,
-      "discount": 10
     }
   ]
 }
