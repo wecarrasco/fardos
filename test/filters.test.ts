@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, manaBucket, manaLabel,
-  matchesColours,
+  matchesColours, isLegalIn, formatLabel,
 } from '../web/filters.js';
 
 const card = (name: string, extra: any = {}) => ({
@@ -391,4 +391,106 @@ test('ticks the new results cannot satisfy are dropped one by one', () => {
 
   const all = pruneFilters({ ...emptyFilters(), colours: ['G', 'R'] }, facets);
   assert.deepEqual(all.colours, [], 'nothing left means no colour filter');
+});
+
+/* ---------------------------------------------------------------- *
+ * Format legality
+ * ---------------------------------------------------------------- */
+
+// The index publishes its own bit order; the frontend never assumes one.
+const FORMATS = ['standard', 'pioneer', 'modern', 'legacy', 'pauper', 'commander'];
+const bits = (...names: string[]) =>
+  names.reduce((n, f) => n | (1 << FORMATS.indexOf(f)), 0);
+
+test('a format name is read against the index\'s own bit order', () => {
+  assert.equal(isLegalIn(bits('modern'), 'modern', FORMATS), true);
+  assert.equal(isLegalIn(bits('modern'), 'legacy', FORMATS), false);
+  // The same number means something else under a different order.
+  assert.equal(isLegalIn(bits('standard'), 'standard', [...FORMATS].reverse()), false);
+});
+
+test('no format chosen restricts nothing', () => {
+  assert.equal(isLegalIn(undefined, null, FORMATS), true);
+  assert.equal(isLegalIn(0, null, FORMATS), true);
+});
+
+test('a card with no legality recorded is not legal anywhere', () => {
+  // A token, or something printed since the table was last refreshed. Not
+  // knowing is not the same as knowing it is banned, but a filter that
+  // promises "legal in Modern" must not include it.
+  for (const f of FORMATS) {
+    assert.equal(isLegalIn(undefined, f, FORMATS), false, f);
+    assert.equal(isLegalIn(0, f, FORMATS), false, f);
+  }
+});
+
+test('an unknown format matches nothing rather than throwing', () => {
+  assert.equal(isLegalIn(63, 'yugioh', FORMATS), false);
+  assert.equal(isLegalIn(63, 'modern', []), false, 'an index with no formats offers none');
+});
+
+test('formats are labelled from their own names', () => {
+  assert.equal(formatLabel('pioneer'), 'Pioneer');
+  assert.equal(formatLabel('commander'), 'Commander');
+});
+
+test('a format everything is legal in is not offered', () => {
+  // Commander sits above 98% across this catalogue, so on most searches it is
+  // a control that changes nothing -- the price ceilings' rule again.
+  const f = facetsFor(result([deck('a', null, [
+    card('A', { lg: bits('modern', 'commander') }),
+    card('B', { lg: bits('commander') }),
+  ])]), null, FORMATS);
+  assert.deepEqual(f.format.map((o) => [o.value, o.count]), [['modern', 1]]);
+});
+
+test('a format nothing is legal in is not offered either', () => {
+  const f = facetsFor(result([deck('a', null, [card('A', { lg: bits('modern') })])]), null, FORMATS);
+  assert.ok(!f.format.some((o) => o.value === 'pauper'));
+});
+
+test('an index with no legality offers no format filter', () => {
+  // An older index, published before the field existed. The control simply
+  // does not appear rather than claiming everything is illegal.
+  const f = facetsFor(result([deck('a', null, [card('A'), card('B')])]), null, []);
+  assert.deepEqual(f.format, []);
+});
+
+test('filtering by format keeps the legal and drops the rest', () => {
+  const r = result([deck('a', null, [
+    card('Modern', { lg: bits('modern', 'commander') }),
+    card('Commander only', { lg: bits('commander') }),
+    card('Token'),
+  ])]);
+  const names = (f: any) =>
+    applyFilters(r, { ...emptyFilters(), ...f }, null, FORMATS)
+      .decks.flatMap((d: any) => d.cards.map((c: any) => c.name));
+
+  assert.deepEqual(names({ format: 'modern' }), ['Modern']);
+  assert.deepEqual(names({ format: 'commander' }), ['Modern', 'Commander only']);
+  assert.deepEqual(names({ format: 'pauper' }), [], 'and the deck is dropped, not shown empty');
+});
+
+test('format combines with the colour and mana filters', () => {
+  const r = result([deck('a', null, [
+    card('Keep', { lg: bits('modern'), ci: 'U', mv: 2 }),
+    card('Wrong format', { lg: bits('commander'), ci: 'U', mv: 2 }),
+    card('Wrong colour', { lg: bits('modern'), ci: 'R', mv: 2 }),
+    card('Wrong cost', { lg: bits('modern'), ci: 'U', mv: 5 }),
+  ])]);
+  const out = applyFilters(
+    r, { ...emptyFilters(), format: 'modern', colours: ['U'], manaValue: 2 }, null, FORMATS);
+  assert.deepEqual(out.decks[0]!.cards.map((c: any) => c.name), ['Keep']);
+});
+
+test('a format the new results cannot satisfy is dropped', () => {
+  const facets = facetsFor(result([deck('a', null, [
+    card('A', { lg: bits('modern', 'commander') }), card('B', { lg: bits('commander') }),
+  ])]), null, FORMATS);
+  assert.equal(pruneFilters({ ...emptyFilters(), format: 'pauper' }, facets).format, null);
+  assert.equal(pruneFilters({ ...emptyFilters(), format: 'modern' }, facets).format, 'modern');
+});
+
+test('isFiltered notices a format', () => {
+  assert.equal(isFiltered({ ...emptyFilters(), format: 'modern' }), true);
 });

@@ -7,7 +7,7 @@ import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
 import { cardPrice, formatPrice, describeTotals } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
 import {
-  emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, COLOUR_MODES,
+  emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, COLOUR_MODES, formatLabel,
 } from './filters.js';
 import { DEFAULT_SORT, SORT_LABELS, availableSorts, isSorted, pruneSort, sortResult } from './sorting.js';
 import {
@@ -121,6 +121,12 @@ let cart = loadCart();
  * published, so the order matches the leftmost figure on every row.
  */
 const priceSource = () => index?.priceSources?.[0] ?? null;
+/**
+ * The formats each card's legality mask is written against, in bit order.
+ * Read from the index rather than listed here, so an index built before the
+ * filter existed simply offers no formats instead of misreading its numbers.
+ */
+const legalFormats = () => index?.legalFormats ?? [];
 /** The unfiltered result, kept so changing a filter need not redo the search. */
 let lastResult = null;
 /** What to call when a filter changes. */
@@ -144,7 +150,7 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
   const canSort = sorts.length > 1 && unfiltered.hitCount > 1;
   const anyControl = canSort || facets.foil || facets.rarity.length || facets.typeName.length ||
                      facets.setId.length || facets.discount.length || facets.maxPrice.length ||
-                     facets.manaValue.length || facets.colour.length;
+                     facets.manaValue.length || facets.colour.length || facets.format.length;
   if (!anyControl) { filtersEl.hidden = true; filtersEl.innerHTML = ''; return; }
 
   const sortControl = canSort
@@ -199,6 +205,8 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
     selectControl('manaValue', 'Any mana value', facets.manaValue, filters.manaValue,
       (o) => `Mana value ${o.label}`) +
     chips + colourMode +
+    selectControl('format', 'Any format', facets.format, filters.format,
+      (o) => `Legal in ${formatLabel(o.value)}`) +
     selectControl('setId', 'Any set', facets.setId, filters.setId) +
     selectControl('minDiscount', 'Any discount', facets.discount, filters.minDiscount,
       (o) => `${o.value}% off or better`) +
@@ -256,14 +264,14 @@ function renderFiltered(result, opts, onRerender, draw = renderResults) {
   // would otherwise be applied once -- emptying the page -- and only then
   // dropped, leaving the reader looking at nothing with no filter to clear.
   const source = priceSource();
-  const facets = facetsFor(result, source);
+  const facets = facetsFor(result, source, legalFormats());
   const sorts = availableSorts(result, source);
   filters = pruneFilters(filters, facets);
   sort = pruneSort(sort, sorts);
 
   // Narrow first, then order: sorting rows that are about to be dropped is
   // work for nothing, and the deck order depends on which cards survive.
-  const filtered = sortResult(applyFilters(result, filters, source), sort, source);
+  const filtered = sortResult(applyFilters(result, filters, source, legalFormats()), sort, source);
   renderFilters(result, filtered, facets, sorts);
   draw(filtered, opts);
 }

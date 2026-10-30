@@ -24,6 +24,7 @@ import { cardPrice } from './prices.js';
  * @property {number|null} manaValue bucket, where 7 means "7 or more"
  * @property {string[]} colours ticked colours: letters of WUBRG, and "C"
  * @property {ColourMode} colourMode how `colours` is compared to a card's own
+ * @property {string|null} format a format the card must be legal in
  *
  * @typedef {'including'|'exactly'|'at-most'} ColourMode
  */
@@ -34,14 +35,14 @@ export const DEFAULT_COLOUR_MODE = 'including';
 /** @returns {Filters} */
 export const emptyFilters = () => ({
   foil: 'all', rarity: null, typeName: null, setId: null, minDiscount: null, maxPrice: null,
-  manaValue: null, colours: [], colourMode: DEFAULT_COLOUR_MODE,
+  manaValue: null, colours: [], colourMode: DEFAULT_COLOUR_MODE, format: null,
 });
 
 /** @param {Filters} f */
 export const isFiltered = (f) =>
   f.foil !== 'all' || f.rarity !== null || f.typeName !== null ||
   f.setId !== null || f.minDiscount !== null || f.maxPrice !== null ||
-  f.manaValue !== null || f.colours.length > 0;
+  f.manaValue !== null || f.colours.length > 0 || f.format !== null;
 
 /**
  * Mana values above six are one bucket.
@@ -82,8 +83,30 @@ export const COLOUR_MODES = [
   ['at-most', 'at most these'],
 ];
 
+/** "pioneer" -> "Pioneer". Derived rather than tabulated, so adding a format
+ * to the index needs no matching edit here. */
+export const formatLabel = (f) => String(f).charAt(0).toUpperCase() + String(f).slice(1);
+
 /** A card's colours as a set. Colourless is `['C']`, unknown is empty. */
 const colourSet = (ci) => (typeof ci === 'string' && ci ? [...ci] : []);
+
+/**
+ * Is a card legal in this format?
+ *
+ * `formats` comes from the index rather than from here, so the bit positions
+ * are always the ones the file was written with. A card with no mask is one
+ * we have no legality for -- a token, or a card printed since the table was
+ * refreshed -- and it fails, rather than being guessed either way.
+ *
+ * @param {number|undefined} lg
+ * @param {string|null} format
+ * @param {readonly string[]} formats
+ */
+export function isLegalIn(lg, format, formats) {
+  if (!format) return true;
+  const i = (formats ?? []).indexOf(format);
+  return i >= 0 && ((lg ?? 0) & (1 << i)) !== 0;
+}
 
 /**
  * Does one card answer to this selection?
@@ -125,14 +148,16 @@ const PRICE_STEPS = [1, 2, 5, 10, 25, 50, 100];
  *
  * @param {Narrowable | null | undefined} result
  * @param {import('./prices.js').PriceSource | null} [source] absent when the index carries no prices
+ * @param {readonly string[]} [formats] the index's own legality bit order
  */
-export function facetsFor(result, source) {
+export function facetsFor(result, source, formats = []) {
   const rarity = new Map();
   const typeName = new Map();
   const sets = new Map();
   const discounts = new Map();
   const manaValues = new Map();
   const colours = new Map();
+  const legalIn = new Map();
   let foil = 0;
   let nonfoil = 0;
 
@@ -156,6 +181,9 @@ export function facetsFor(result, source) {
       // overlap by design -- a Golgari card is both black and green.
       for (const [code, label] of COLOURS) {
         if ((c.ci ?? '').includes(code)) bump(colours, code, label);
+      }
+      for (const f of formats) {
+        if (isLegalIn(c.lg, f, formats)) bump(legalIn, f, formatLabel(f));
       }
     }
   }
@@ -200,6 +228,12 @@ export function facetsFor(result, source) {
     colour: colours.size > 1
       ? COLOURS.map(([code]) => colours.get(code)).filter(Boolean)
       : [],
+    // A format everything is legal in narrows nothing, which is the ceilings'
+    // rule again -- and it quietly retires Commander and Legacy from most
+    // searches, where they sit above 98%.
+    format: formats
+      .map((f) => legalIn.get(f))
+      .filter((o) => o && o.count < foil + nonfoil),
     maxPrice,
   };
 }
@@ -213,9 +247,10 @@ export function facetsFor(result, source) {
  * @param {T} result
  * @param {Filters} filters
  * @param {import('./prices.js').PriceSource | null} [source] absent when the index carries no prices
+ * @param {readonly string[]} [formats] the index's own legality bit order
  * @returns {T}
  */
-export function applyFilters(result, filters, source) {
+export function applyFilters(result, filters, source, formats = []) {
   if (!result?.decks || !isFiltered(filters)) return result;
 
   // A card nobody prices is dropped by a ceiling rather than kept: an unknown
@@ -237,6 +272,7 @@ export function applyFilters(result, filters, source) {
     // identity recorded is not thereby colourless.
     (filters.manaValue === null || manaBucket(c.mv) === filters.manaValue) &&
     matchesColours(c.ci, filters.colours, filters.colourMode) &&
+    isLegalIn(c.lg, filters.format, formats) &&
     underCeiling(c);
 
   /** @type {DeckHits[]} */
@@ -285,5 +321,7 @@ export function pruneFilters(filters, facets) {
     // the search narrows the selection rather than emptying the page.
     colours: filters.colours.filter((c) => has(facets.colour, c)),
     colourMode: filters.colourMode,
+    format: filters.format !== null && has(facets.format, filters.format)
+      ? filters.format : null,
   };
 }

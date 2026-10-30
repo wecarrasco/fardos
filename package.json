@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "scrape:deck": "tsx src/cli/scrape-deck.ts",
     "fixtures:update": "tsx scripts/update-fixtures.ts",
-    "decks:update": "tsx scripts/update-decks.ts"
+    "decks:update": "tsx scripts/update-decks.ts",
+    "legality:update": "tsx scripts/update-legality.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

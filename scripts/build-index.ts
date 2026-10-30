@@ -12,6 +12,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deckDiscount } from '../src/scrapers/linktree.js';
 import { loadDeckList } from '../src/decks.js';
+import { LEGAL_FORMATS, loadLegality, type LegalityLookup } from '../src/legality.js';
 import { scrapeDeck, PRICE_VENDORS, type DeckSnapshot } from '../src/scrapers/manabox.js';
 import { sleep } from '../src/scrapers/http.js';
 import { config, linktreeUrl } from '../src/config.js';
@@ -54,6 +55,13 @@ interface IndexCard {
    * means unknown, which a colour filter excludes rather than guesses at.
    */
   ci?: string;
+  /**
+   * Format legality, as a bitmask over the index's own `legalFormats`. Absent
+   * means we have no legality for this card -- a token, or something printed
+   * since the table was last refreshed -- which a filter excludes rather than
+   * reads as "illegal".
+   */
+  lg?: number;
   /** Reference prices by vendor, absent when nobody lists the card. */
   prices?: Record<string, number>;
 }
@@ -70,9 +78,20 @@ interface IndexDeck {
   cards: IndexCard[];
 }
 
+/** A card's legality bits, or nothing at all when it has none to give. */
+function cardLegality(
+  card: { name: string; typeName: string },
+  legality: LegalityLookup,
+): { lg?: number } {
+  if (card.typeName === 'Other') return {};
+  const bits = legality.bitsFor(card.name);
+  return bits ? { lg: bits } : {};
+}
+
 function toIndexDeck(
   snapshot: DeckSnapshot,
   link: { category: string | null; linkText: string; discount?: number | null },
+  legality: LegalityLookup,
 ): IndexDeck {
   return {
     id: snapshot.deckId,
@@ -98,6 +117,11 @@ function toIndexDeck(
       // a missing one.
       ...(c.manaValue !== null ? { mv: c.manaValue } : {}),
       ...(c.colorIdentity ? { ci: c.colorIdentity } : {}),
+      // Tokens are looked up by nothing. ManaBox files them under "Other",
+      // and several share a printed name with a real card -- a Scarecrow
+      // token would otherwise inherit the legality of the 5-mana artifact
+      // creature it is named after.
+      ...(cardLegality(c, legality)),
       // Omitted when empty: most tokens are priced by nobody, and an absent
       // key costs nothing in the published file.
       ...(Object.keys(c.prices).length ? { prices: c.prices } : {}),
@@ -143,6 +167,10 @@ if (noScrape) {
 // fetched. loadDeckList throws on a missing, empty or malformed list, so the
 // previously published index stays up rather than being replaced with nothing.
 const links = loadDeckList(root).decks;
+// Committed alongside the deck list, and read the same way: a missing or
+// malformed table stops the build rather than quietly publishing an index in
+// which every card looks illegal.
+const legality = loadLegality(root);
 
 const decks: IndexDeck[] = [];
 let failed = 0;
@@ -157,7 +185,7 @@ for (const [i, link] of links.entries()) {
       log.warn(`skipping deck that is no longer available: ${link.linkText}`);
       continue;
     }
-    decks.push(toIndexDeck(snapshot, link));
+    decks.push(toIndexDeck(snapshot, link, legality));
     process.stderr.write(`\r[${i + 1}/${links.length}] ${link.linkText.slice(0, 48).padEnd(50)}`);
   } catch (err) {
     // One bad deck must not lose the other sixty-two.
@@ -204,6 +232,13 @@ const index = {
     label: PRICE_VENDORS[v].label,
     currency: PRICE_VENDORS[v].currency,
   })),
+  /**
+   * The formats each card's `lg` mask is written against, in bit order.
+   * Published rather than hardcoded in the frontend so the two cannot drift:
+   * the index says what its own numbers mean.
+   */
+  legalFormats: [...LEGAL_FORMATS],
+  legalityCapturedAt: legality.capturedAt,
   stats: {
     decks: decks.length, entries, copies, names,
     newPrintings: arrivedKeys.length, skipped: gone, failed,

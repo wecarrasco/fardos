@@ -128,6 +128,33 @@ updating on schedule; a deck added since the last capture is simply missing. Aft
 days the build logs a warning naming the capture date, so the staleness is stated rather
 than silent.
 
+### Refreshing format legality
+
+ManaBox does not publish legality, so it is the one thing on a card that comes from
+somewhere else: Scryfall's bulk data, extracted into a committed `legality.json`.
+
+```
+npm run legality:update
+```
+
+Then commit the file. It takes about six seconds and prints what changed, naming every
+card whose legality moved — usually a ban, an unban, or a rotation.
+
+Run it after a banned-list announcement or a set release, which is a handful of times a
+year. The build logs a warning after 120 days.
+
+**Why this is not in the build.** Not robots.txt this time — Scryfall allows it, and
+publishes the bulk files precisely so that projects download one file instead of making
+35,000 API calls. It is that each regeneration gets its own timestamped URL served
+immutable, so there is no cheap "nothing changed" request: a refresh is always the full
+25 MB. What we take out of it is a name and six bits, which move a handful of times a
+year. Downloading 25 MB twice a day to re-derive that would also hand every build a
+third-party dependency that can fail at 3am, for nothing.
+
+**What goes wrong if you forget.** A card printed since the last refresh has no
+legality recorded, and the format filter leaves it out rather than guessing. Cards
+already in the table keep working.
+
 ---
 
 ## Pointing it at a different seller
@@ -157,6 +184,7 @@ npm run serve:site      # http://localhost:4173
 | `npm test` | Test suite (offline, ~1s) |
 | `npm run typecheck` | TypeScript check |
 | `npm run decks:update -- <file.html>` | Refresh `decks.json` from a saved Linktree page |
+| `npm run legality:update` | Refresh `legality.json` from Scryfall's bulk data |
 | `npm run scrape:deck -- <id>` | Print one parsed deck (`--json`) |
 | `npm run fixtures:update` | Re-download the saved test pages |
 
