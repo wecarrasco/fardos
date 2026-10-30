@@ -6,7 +6,9 @@ import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
 import { cardPrice, formatPrice, describeTotals } from './prices.js';
 import { parseDecklist, matchDecklist } from './decklist.js';
-import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from './filters.js';
+import {
+  emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, COLOUR_MODES,
+} from './filters.js';
 import { DEFAULT_SORT, SORT_LABELS, availableSorts, isSorted, pruneSort, sortResult } from './sorting.js';
 import {
   addToCart, cartCount, cartMessage, loadCart, removeLine, resolveCart, saveCart, wantedFrom,
@@ -141,7 +143,8 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
   // there is something for it to do.
   const canSort = sorts.length > 1 && unfiltered.hitCount > 1;
   const anyControl = canSort || facets.foil || facets.rarity.length || facets.typeName.length ||
-                     facets.setId.length || facets.discount.length || facets.maxPrice.length;
+                     facets.setId.length || facets.discount.length || facets.maxPrice.length ||
+                     facets.manaValue.length || facets.colour.length;
   if (!anyControl) { filtersEl.hidden = true; filtersEl.innerHTML = ''; return; }
 
   const sortControl = canSort
@@ -163,6 +166,29 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
        </div>`
     : '';
 
+  // Letters rather than names, so six chips fit a phone without scrolling; the
+  // name and count ride along on the label for anyone who needs them.
+  const chips = facets.colour.length
+    ? `<div class="seg" role="group" aria-label="Colours">
+         ${facets.colour.map((o) =>
+           `<button type="button" data-colour="${esc(o.value)}"
+                    class="${filters.colours.includes(o.value) ? 'on' : ''}"
+                    aria-pressed="${filters.colours.includes(o.value)}"
+                    aria-label="${esc(o.label)} (${o.count})"
+                    title="${esc(o.label)} (${o.count})">${esc(o.value)}</button>`).join('')}
+       </div>`
+    : '';
+
+  // The mode says nothing until something is ticked, so it waits until then --
+  // the same reason the sort control stays away from a single row.
+  const colourMode = facets.colour.length && filters.colours.length
+    ? `<select data-colour-mode class="on" aria-label="How to match the ticked colours">
+         ${COLOUR_MODES.map(([v, label]) =>
+           `<option value="${esc(v)}"${v === filters.colourMode ? ' selected' : ''}>${esc(label)}</option>`)
+          .join('')}
+       </select>`
+    : '';
+
   filtersEl.hidden = false;
   filtersEl.innerHTML =
     sortControl +
@@ -170,6 +196,9 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
     selectControl('maxPrice', 'Any price', facets.maxPrice, filters.maxPrice) +
     selectControl('rarity', 'Any rarity', facets.rarity, filters.rarity) +
     selectControl('typeName', 'Any type', facets.typeName, filters.typeName) +
+    selectControl('manaValue', 'Any mana value', facets.manaValue, filters.manaValue,
+      (o) => `Mana value ${o.label}`) +
+    chips + colourMode +
     selectControl('setId', 'Any set', facets.setId, filters.setId) +
     selectControl('minDiscount', 'Any discount', facets.discount, filters.minDiscount,
       (o) => `${o.value}% off or better`) +
@@ -186,6 +215,15 @@ function renderFilters(unfiltered, filtered, facets, sorts) {
 filtersEl.addEventListener('click', (ev) => {
   const foil = ev.target.closest('[data-foil]');
   if (foil) { filters.foil = foil.dataset.foil; return rerender(); }
+
+  const colour = ev.target.closest('[data-colour]');
+  if (colour) {
+    const code = colour.dataset.colour;
+    filters.colours = filters.colours.includes(code)
+      ? filters.colours.filter((c) => c !== code)
+      : [...filters.colours, code];
+    return rerender();
+  }
   if (ev.target.closest('.clear')) {
     filters = emptyFilters();
     sort = DEFAULT_SORT;
@@ -197,11 +235,14 @@ filtersEl.addEventListener('change', (ev) => {
   const order = ev.target.closest('[data-sort]');
   if (order) { sort = order.value; return rerender(); }
 
+  const mode = ev.target.closest('[data-colour-mode]');
+  if (mode) { filters.colourMode = mode.value; return rerender(); }
+
   const sel = ev.target.closest('[data-filter]');
   if (!sel) return;
   const key = sel.dataset.filter;
   const raw = sel.value;
-  const numeric = key === 'minDiscount' || key === 'maxPrice';
+  const numeric = key === 'minDiscount' || key === 'maxPrice' || key === 'manaValue';
   filters[key] = raw === '' ? null : (numeric ? Number(raw) : raw);
   rerender();
 });

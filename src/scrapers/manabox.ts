@@ -82,6 +82,11 @@ export interface DeckCard {
   typeName: string;
   manaValue: number | null;
   /**
+   * Colour identity as letters ("W", "BU"), or "C" for a colourless card.
+   * Null only when ManaBox sent nothing at all.
+   */
+  colorIdentity: string | null;
+  /**
    * Market reference prices, keyed by vendor. A vendor that does not list the
    * card is simply absent rather than present-and-null, so the published index
    * carries no keys for what nobody prices.
@@ -130,6 +135,18 @@ function decodeAstroProps(node: unknown): unknown {
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/**
+ * Colour identity, with colourless written "C".
+ *
+ * ManaBox sends an empty string for a colourless card, which `str()` would
+ * turn into null and make indistinguishable from a card it told us nothing
+ * about. Those two must not merge: a colour filter has to include the
+ * colourless and exclude the unknown, the same way a price ceiling keeps out
+ * cards nobody prices rather than treating them as cheap.
+ */
+const identity = (v: unknown): string | null =>
+  typeof v !== 'string' ? null : v === '' ? 'C' : v;
 
 /** Pull the deck object out of whichever astro-island carries it. */
 function extractDeckPayload($: cheerio.CheerioAPI): Record<string, unknown> | null {
@@ -190,6 +207,7 @@ function cardsFromPayload(
     rarity: str(c['rarity']),
     typeName: cardTypeName(c['type']),
     manaValue: num(c['manaValue']),
+    colorIdentity: identity(c['colorIdentity']),
     prices: cardPrices(c['pricing'], vendors),
   }));
 }
@@ -222,6 +240,7 @@ function cardsFromDom($: cheerio.CheerioAPI): DeckCard[] {
       rarity: null,
       typeName: 'Unknown',
       manaValue: null,
+      colorIdentity: null,
       prices: {},
     });
   });

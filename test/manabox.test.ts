@@ -169,3 +169,36 @@ test('cardTypeName maps knowns and degrades gracefully', () => {
   assert.equal(cardTypeName(99), 'Other (99)');
   assert.equal(cardTypeName(undefined), 'Other');
 });
+
+/* -------------------------------------------------------------- *
+ * Mana
+ * -------------------------------------------------------------- */
+
+test('every card carries a mana value and a colour identity', () => {
+  // Both arrive on every row of every fixture, which is why the mana filters
+  // need no second source.
+  for (const key of Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]) {
+    const cards = parse(key).cards;
+    assert.equal(cards.filter((c) => c.manaValue === null).length, 0, `${key}: a null manaValue`);
+    assert.equal(cards.filter((c) => c.colorIdentity === null).length, 0, `${key}: a null colorIdentity`);
+  }
+});
+
+test('a colourless card reads as "C", never as nothing', () => {
+  // ManaBox sends an empty string, and an empty string through str() would be
+  // null -- indistinguishable from a card it told us nothing about. A colour
+  // filter has to include the colourless and exclude the unknown.
+  const cards = parse('mixed').cards;
+  const colourless = cards.filter((c) => c.colorIdentity === 'C');
+  assert.ok(colourless.length > 0, 'the fixture should hold colourless cards');
+  assert.equal(cards.filter((c) => c.colorIdentity === '').length, 0, 'an empty string survived');
+});
+
+test('colour identity is letters drawn from WUBRG, or exactly "C"', () => {
+  for (const key of Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]) {
+    for (const c of parse(key).cards) {
+      const ci = c.colorIdentity!;
+      assert.match(ci, /^(C|[WUBRG]+)$/, `${c.name}: unexpected identity ${JSON.stringify(ci)}`);
+    }
+  }
+});

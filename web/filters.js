@@ -21,17 +21,95 @@ import { cardPrice } from './prices.js';
  * @property {string|null} setId
  * @property {number|null} minDiscount
  * @property {number|null} maxPrice reference price ceiling, from the primary vendor
+ * @property {number|null} manaValue bucket, where 7 means "7 or more"
+ * @property {string[]} colours ticked colours: letters of WUBRG, and "C"
+ * @property {ColourMode} colourMode how `colours` is compared to a card's own
+ *
+ * @typedef {'including'|'exactly'|'at-most'} ColourMode
  */
+
+/** How ticked colours are compared when nobody has chosen. */
+export const DEFAULT_COLOUR_MODE = 'including';
 
 /** @returns {Filters} */
 export const emptyFilters = () => ({
   foil: 'all', rarity: null, typeName: null, setId: null, minDiscount: null, maxPrice: null,
+  manaValue: null, colours: [], colourMode: DEFAULT_COLOUR_MODE,
 });
 
 /** @param {Filters} f */
 export const isFiltered = (f) =>
   f.foil !== 'all' || f.rarity !== null || f.typeName !== null ||
-  f.setId !== null || f.minDiscount !== null || f.maxPrice !== null;
+  f.setId !== null || f.minDiscount !== null || f.maxPrice !== null ||
+  f.manaValue !== null || f.colours.length > 0;
+
+/**
+ * Mana values above six are one bucket.
+ *
+ * The tail is thin and nobody searching it cares whether the thing costs nine
+ * or eleven -- a separate option per value would be a dozen near-empty rows.
+ */
+export const MANA_CAP = 7;
+
+/** The bucket a card falls in, or null when its mana value is unknown. */
+export const manaBucket = (mv) =>
+  typeof mv !== 'number' || !Number.isFinite(mv) ? null : Math.min(MANA_CAP, Math.max(0, Math.floor(mv)));
+
+export const manaLabel = (bucket) => (bucket >= MANA_CAP ? `${MANA_CAP}+` : String(bucket));
+
+/**
+ * The colour options, in the order Magic prints them.
+ *
+ * "C" is a real value in the index rather than the absence of one: a colourless
+ * card carries "C", and a card whose identity we never learned carries nothing
+ * and answers to no colour at all.
+ */
+export const COLOURS = [
+  ['W', 'White'], ['U', 'Blue'], ['B', 'Black'],
+  ['R', 'Red'], ['G', 'Green'], ['C', 'Colorless'],
+];
+
+/**
+ * How the ticked colours are compared with a card's own.
+ *
+ * `including` first because it is what one tick most obviously means -- "show
+ * me the blue ones" -- and because the other two only start to differ once you
+ * have ticked more than one.
+ */
+export const COLOUR_MODES = [
+  ['including', 'including these'],
+  ['exactly', 'exactly these'],
+  ['at-most', 'at most these'],
+];
+
+/** A card's colours as a set. Colourless is `['C']`, unknown is empty. */
+const colourSet = (ci) => (typeof ci === 'string' && ci ? [...ci] : []);
+
+/**
+ * Does one card answer to this selection?
+ *
+ * The one special case is `at-most` and colourless. A colourless card has no
+ * colours, and nothing is outside any selection, so it belongs in every "at
+ * most" answer -- that is the question people are really asking, which is
+ * whether a card can go in a deck of those colours, and a Sol Ring can go in
+ * all of them.
+ *
+ * @param {string|undefined} ci
+ * @param {string[]} picked
+ * @param {ColourMode} mode
+ */
+export function matchesColours(ci, picked, mode) {
+  if (!picked.length) return true;
+  const own = colourSet(ci);
+  // Never guess at a card we know nothing about, the same way an unpriced card
+  // fails a ceiling rather than slipping under it.
+  if (!own.length) return false;
+
+  const has = (c) => own.includes(c);
+  if (mode === 'exactly') return own.length === picked.length && picked.every(has);
+  if (mode === 'at-most') return own.includes('C') || own.every((c) => picked.includes(c));
+  return picked.every(has);   // including
+}
 
 /**
  * Ceilings worth offering. A round ladder rather than quantiles, because
@@ -53,6 +131,8 @@ export function facetsFor(result, source) {
   const typeName = new Map();
   const sets = new Map();
   const discounts = new Map();
+  const manaValues = new Map();
+  const colours = new Map();
   let foil = 0;
   let nonfoil = 0;
 
@@ -69,6 +149,14 @@ export function facetsFor(result, source) {
       bump(typeName, c.typeName);
       if (c.setId) bump(sets, c.setId, c.setName ?? c.setId.toUpperCase());
       if (deck.discount) bump(discounts, deck.discount, `${deck.discount}% off`);
+
+      const mb = manaBucket(c.mv);
+      if (mb !== null) bump(manaValues, mb, manaLabel(mb));
+      // A card belongs to every colour in its identity, so these counts
+      // overlap by design -- a Golgari card is both black and green.
+      for (const [code, label] of COLOURS) {
+        if ((c.ci ?? '').includes(code)) bump(colours, code, label);
+      }
     }
   }
 
@@ -100,6 +188,17 @@ export function facetsFor(result, source) {
     setId: sets.size > 1 ? [...sets.values()].sort(byCount) : [],
     discount: discounts.size > 1
       ? [...discounts.values()].sort((a, b) => Number(b.value) - Number(a.value))
+      : [],
+    // Ascending, not by count: a mana curve read out of order is unreadable.
+    manaValue: manaValues.size > 1
+      ? [...manaValues.values()].sort((a, b) => Number(a.value) - Number(b.value))
+      : [],
+    // Every colour present is offered, with no "narrows nothing" gate: once
+    // there is a mode, even a colour every card shares still cuts -- "exactly
+    // green" drops the green-white cards from an all-green pile. The control
+    // as a whole is hidden below, when only one colour is in play.
+    colour: colours.size > 1
+      ? COLOURS.map(([code]) => colours.get(code)).filter(Boolean)
       : [],
     maxPrice,
   };
@@ -133,6 +232,11 @@ export function applyFilters(result, filters, source) {
     (filters.rarity === null || c.rarity === filters.rarity) &&
     (filters.typeName === null || c.typeName === filters.typeName) &&
     (filters.setId === null || c.setId === filters.setId) &&
+    // Both drop a card whose data is missing, for the reason the ceiling does:
+    // an unrecorded mana value is not a zero, and a card with no colour
+    // identity recorded is not thereby colourless.
+    (filters.manaValue === null || manaBucket(c.mv) === filters.manaValue) &&
+    matchesColours(c.ci, filters.colours, filters.colourMode) &&
     underCeiling(c);
 
   /** @type {DeckHits[]} */
@@ -175,5 +279,11 @@ export function pruneFilters(filters, facets) {
       ? filters.minDiscount : null,
     maxPrice: filters.maxPrice !== null && has(facets.maxPrice, filters.maxPrice)
       ? filters.maxPrice : null,
+    manaValue: filters.manaValue !== null && has(facets.manaValue, filters.manaValue)
+      ? filters.manaValue : null,
+    // Ticks the new results cannot satisfy are dropped one by one, so changing
+    // the search narrows the selection rather than emptying the page.
+    colours: filters.colours.filter((c) => has(facets.colour, c)),
+    colourMode: filters.colourMode,
   };
 }

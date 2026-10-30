@@ -47,6 +47,13 @@ interface IndexCard {
   collectorNumber: string | null;
   rarity: string | null;
   typeName: string;
+  /** Mana value. Absent when ManaBox did not report one. */
+  mv?: number;
+  /**
+   * Colour identity as letters ("W", "BU"), or "C" for colourless. Absent
+   * means unknown, which a colour filter excludes rather than guesses at.
+   */
+  ci?: string;
   /** Reference prices by vendor, absent when nobody lists the card. */
   prices?: Record<string, number>;
 }
@@ -86,6 +93,11 @@ function toIndexDeck(
       collectorNumber: c.collectorNumber,
       rarity: c.rarity,
       typeName: c.typeName,
+      // Both omitted when ManaBox reported nothing, so the filters can tell
+      // "colourless" from "we do not know" -- and mv 0 is a real answer, not
+      // a missing one.
+      ...(c.manaValue !== null ? { mv: c.manaValue } : {}),
+      ...(c.colorIdentity ? { ci: c.colorIdentity } : {}),
       // Omitted when empty: most tokens are priced by nobody, and an absent
       // key costs nothing in the published file.
       ...(Object.keys(c.prices).length ? { prices: c.prices } : {}),

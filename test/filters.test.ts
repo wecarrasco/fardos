@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters } from '../web/filters.js';
+import {
+  emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, manaBucket, manaLabel,
+  matchesColours,
+} from '../web/filters.js';
 
 const card = (name: string, extra: any = {}) => ({
   name, quantity: 2, foil: false, setName: 'Set A', setId: 'aaa',
@@ -145,7 +148,7 @@ test('choices the new results cannot satisfy are dropped', () => {
     deck('a', 10, [card('One'), card('Two', { rarity: 'Common' })]),
   ]));
 
-  const stale = { foil: 'foil' as const, rarity: 'Mythic', typeName: 'Land', setId: 'zzz', minDiscount: 30, maxPrice: 5 };
+  const stale = { ...emptyFilters(), foil: 'foil' as const, rarity: 'Mythic', typeName: 'Land', setId: 'zzz', minDiscount: 30, maxPrice: 5, manaValue: 4, colour: 'R' };
   assert.deepEqual(pruneFilters(stale, facets), emptyFilters());
 });
 
@@ -156,7 +159,7 @@ test('choices that still apply are kept', () => {
   ]));
 
   const kept = pruneFilters(
-    { foil: 'foil', rarity: 'Common', typeName: null, setId: null, minDiscount: 20, maxPrice: null },
+    { ...emptyFilters(), foil: 'foil' as const, rarity: 'Common', minDiscount: 20 },
     facets,
   );
   assert.equal(kept.foil, 'foil');
@@ -235,4 +238,157 @@ test('a ceiling the new results cannot offer is dropped', () => {
   const facets = facetsFor(result([deck('a', null, [priced('One', 200)])]), TCG);
   const pruned = pruneFilters({ ...emptyFilters(), maxPrice: 1 }, facets);
   assert.equal(pruned.maxPrice, null);
+});
+
+/* ---------------------------------------------------------------- *
+ * Mana value
+ * ---------------------------------------------------------------- */
+
+test('mana values above six share one bucket', () => {
+  assert.equal(manaBucket(0), 0);
+  assert.equal(manaBucket(6), 6);
+  assert.equal(manaBucket(7), 7);
+  assert.equal(manaBucket(13), 7, 'the tail collapses');
+  assert.equal(manaLabel(6), '6');
+  assert.equal(manaLabel(7), '7+');
+});
+
+test('an unknown mana value is no bucket at all', () => {
+  // Not zero. A card we were told nothing about must not land under "free".
+  for (const v of [null, undefined, NaN, 'three']) assert.equal(manaBucket(v as any), null);
+});
+
+test('mana buckets are offered in curve order, not by popularity', () => {
+  const f = facetsFor(result([deck('a', null, [
+    card('A', { mv: 5 }), card('B', { mv: 1 }), card('C', { mv: 1 }), card('D', { mv: 9 }),
+  ])]));
+  assert.deepEqual(f.manaValue.map((o) => [o.label, o.count]), [['1', 2], ['5', 1], ['7+', 1]]);
+});
+
+test('one mana value is not a choice', () => {
+  const f = facetsFor(result([deck('a', null, [card('A', { mv: 2 }), card('B', { mv: 2 })])]));
+  assert.deepEqual(f.manaValue, []);
+});
+
+test('filtering by mana value drops the unknowns with the misses', () => {
+  const r = result([deck('a', null, [
+    card('Two', { mv: 2 }), card('Nine', { mv: 9 }), card('Silent'),
+  ])]);
+  const two = applyFilters(r, { ...emptyFilters(), manaValue: 2 });
+  assert.deepEqual(two.decks[0]!.cards.map((c: any) => c.name), ['Two']);
+
+  const big = applyFilters(r, { ...emptyFilters(), manaValue: 7 });
+  assert.deepEqual(big.decks[0]!.cards.map((c: any) => c.name), ['Nine'], '9 falls in 7+');
+});
+
+/* ---------------------------------------------------------------- *
+ * Colour
+ * ---------------------------------------------------------------- */
+
+test('isFiltered notices the mana filters', () => {
+  assert.equal(isFiltered({ ...emptyFilters(), manaValue: 0 }), true, 'mv 0 is a choice');
+  assert.equal(isFiltered({ ...emptyFilters(), colours: ['C'] }), true);
+  assert.equal(isFiltered({ ...emptyFilters(), colourMode: 'exactly' }), false,
+    'a mode with nothing ticked narrows nothing');
+});
+
+/* ---------------------------------------------------------------- *
+ * Colour: the ticks, and how they are compared
+ * ---------------------------------------------------------------- */
+
+const IZZET = 'UR', MONO_U = 'U', GRIXIS = 'BUR', NONE = 'C';
+
+test('ticking nothing restricts nothing, whatever the mode', () => {
+  for (const mode of ['including', 'exactly', 'at-most'] as const) {
+    assert.equal(matchesColours(MONO_U, [], mode), true);
+    assert.equal(matchesColours(undefined, [], mode), true);
+  }
+});
+
+test('"including" asks for at least these colours', () => {
+  assert.equal(matchesColours(IZZET, ['U'], 'including'), true);
+  assert.equal(matchesColours(GRIXIS, ['U', 'R'], 'including'), true, 'extra colours are fine');
+  assert.equal(matchesColours(MONO_U, ['U', 'R'], 'including'), false, 'missing red');
+  assert.equal(matchesColours(NONE, ['C'], 'including'), true);
+});
+
+test('"exactly" asks for these colours and no others', () => {
+  assert.equal(matchesColours(IZZET, ['U', 'R'], 'exactly'), true);
+  assert.equal(matchesColours(IZZET, ['R', 'U'], 'exactly'), true, 'tick order is not meaning');
+  assert.equal(matchesColours(GRIXIS, ['U', 'R'], 'exactly'), false, 'one colour too many');
+  assert.equal(matchesColours(MONO_U, ['U', 'R'], 'exactly'), false, 'one colour short');
+  assert.equal(matchesColours(NONE, ['C'], 'exactly'), true);
+});
+
+test('"at most" asks for nothing outside these colours', () => {
+  assert.equal(matchesColours(IZZET, ['U', 'R'], 'at-most'), true);
+  assert.equal(matchesColours(MONO_U, ['U', 'R'], 'at-most'), true, 'fewer is still within');
+  assert.equal(matchesColours(GRIXIS, ['U', 'R'], 'at-most'), false, 'black is outside');
+});
+
+test('a colourless card is within every "at most" selection', () => {
+  // The deckbuilding question: a Sol Ring goes in an Izzet deck. Nothing on it
+  // is outside any pair of colours, because nothing is on it.
+  assert.equal(matchesColours(NONE, ['U', 'R'], 'at-most'), true);
+  assert.equal(matchesColours(NONE, ['W'], 'at-most'), true);
+  // But it is not blue, and it is not exactly Izzet.
+  assert.equal(matchesColours(NONE, ['U'], 'including'), false);
+  assert.equal(matchesColours(NONE, ['U', 'R'], 'exactly'), false);
+});
+
+test('a card with no recorded identity answers to no selection', () => {
+  // Including "at most", which otherwise waves colourless cards through: not
+  // knowing a card's colours is not the same as it having none.
+  for (const mode of ['including', 'exactly', 'at-most'] as const) {
+    assert.equal(matchesColours(undefined, ['U'], mode), false, mode);
+    assert.equal(matchesColours('', ['C'], mode), false, mode);
+  }
+});
+
+test('the modes applied to a real result set', () => {
+  const r = result([deck('a', null, [
+    card('Izzet', { ci: 'UR' }), card('Blue', { ci: 'U' }),
+    card('Grixis', { ci: 'BUR' }), card('Rock', { ci: 'C' }), card('Silent'),
+  ])]);
+  const names = (f: any) =>
+    applyFilters(r, { ...emptyFilters(), ...f }).decks.flatMap((d: any) => d.cards.map((c: any) => c.name));
+
+  assert.deepEqual(names({ colours: ['U', 'R'], colourMode: 'including' }), ['Izzet', 'Grixis']);
+  assert.deepEqual(names({ colours: ['U', 'R'], colourMode: 'exactly' }), ['Izzet']);
+  assert.deepEqual(names({ colours: ['U', 'R'], colourMode: 'at-most' }), ['Izzet', 'Blue', 'Rock']);
+  assert.deepEqual(names({ colours: ['C'], colourMode: 'exactly' }), ['Rock']);
+});
+
+test('every colour present is offered, even one they all share', () => {
+  // With a mode in play it still narrows: "exactly green" drops the Selesnya
+  // card from an all-green pile.
+  const f = facetsFor(result([deck('a', null, [
+    card('Mono', { ci: 'G' }), card('Selesnya', { ci: 'GW' }),
+  ])]));
+  assert.deepEqual(f.colour.map((o) => [o.value, o.count]), [['W', 1], ['G', 2]]);
+});
+
+test('one colour across the whole result is no control at all', () => {
+  const f = facetsFor(result([deck('a', null, [card('A', { ci: 'R' }), card('B', { ci: 'R' })])]));
+  assert.deepEqual(f.colour, []);
+});
+
+test('colours are listed in WUBRG order with colourless last', () => {
+  const f = facetsFor(result([deck('a', null, [
+    card('A', { ci: 'G' }), card('B', { ci: 'C' }), card('C', { ci: 'W' }), card('D', { ci: 'U' }),
+  ])]));
+  assert.deepEqual(f.colour.map((o) => o.label), ['White', 'Blue', 'Green', 'Colorless']);
+});
+
+test('ticks the new results cannot satisfy are dropped one by one', () => {
+  const facets = facetsFor(result([deck('a', null, [
+    card('A', { ci: 'W' }), card('B', { ci: 'U' }),
+  ])]));
+  const pruned = pruneFilters(
+    { ...emptyFilters(), colours: ['W', 'G'], colourMode: 'at-most' }, facets);
+  assert.deepEqual(pruned.colours, ['W'], 'green is gone, white survives');
+  assert.equal(pruned.colourMode, 'at-most', 'the mode is kept');
+
+  const all = pruneFilters({ ...emptyFilters(), colours: ['G', 'R'] }, facets);
+  assert.deepEqual(all.colours, [], 'nothing left means no colour filter');
 });
