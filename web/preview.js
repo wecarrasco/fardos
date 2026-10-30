@@ -76,6 +76,7 @@ export function createPreview(getIndex) {
       : '';
 
     el.innerHTML = `
+      <button type="button" class="cp-close" aria-label="Close card preview">&times;</button>
       <div class="cp-img">${
         img ? `<div class="cp-load" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
                <img alt="${esc(card.name)}" src="${esc(img)}" loading="lazy">`
@@ -243,6 +244,20 @@ export function createPreview(getIndex) {
     // which pins it and moves focus inside. Opening on focus and closing on
     // blur, as this once did, made the links in the panel unreachable.
   }
+
+  // A way out that is always visible.
+  //
+  // On a phone the panel is pinned to the whole viewport, which left tapping
+  // outside it -- the only pointer dismissal there was -- with no target to
+  // hit, and the anchor you would tap again underneath the panel. Escape is
+  // not a key a phone has. The panel was, in practice, a trap.
+  el.addEventListener('click', (ev) => {
+    if (ev.target.closest('.cp-close')) {
+      ev.preventDefault();
+      ev.stopPropagation();   // the document handler would fire on this too
+      close({ restoreFocus: true });
+    }
+  });
 
   // Anything that moves the page invalidates the position, so dismiss.
   window.addEventListener('scroll', () => { if (!pinned) close(); }, { passive: true });

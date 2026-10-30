@@ -1,6 +1,6 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { search, suggest, rankMatch } from '../web/search.js';
+import { search, suggest, rankMatch, allCards } from '../web/search.js';
 import { parseDeckPage } from '../src/scrapers/manabox.js';
 import { normalizeCardName } from '../web/normalize.js';
 import { readFixture, FIXTURES } from './fixture-manifest.js';
@@ -207,4 +207,85 @@ test('suggestions respect the limit and handle empty input', () => {
   assert.ok(suggest(index, 'a', 3).length <= 3);
   assert.deepEqual(suggest(index, ''), []);
   assert.deepEqual(suggest(null as any, 'sol'), []);
+});
+
+/* ---------------------------------------------------------------- *
+ * The whole catalogue, for filtering without a query
+ * ---------------------------------------------------------------- */
+
+const cat = (decks: any[]) => ({ decks });
+const c = (name: string, quantity = 1, extra: any = {}) => ({
+  name, quantity, foil: false, setName: 'Set A', setId: 'aaa',
+  collectorNumber: '1', rarity: 'Rare', typeName: 'Creature', ...extra,
+});
+const d = (id: string, cards: any[], extra: any = {}) => ({
+  id, name: `Deck ${id}`, url: `https://manabox.app/decks/${id}`,
+  category: null, discount: null, updatedAt: null, cards, ...extra,
+});
+
+test('the catalogue comes back shaped like a search result', () => {
+  // renderFiltered, facetsFor and applyFilters all take this shape; a second
+  // one would mean a second code path through every filter.
+  const all = allCards(cat([d('a', [c('One', 2), c('Two', 3)], { discount: 20 })]));
+  const g = all.decks[0]!;
+
+  assert.equal(all.deckCount, 1);
+  assert.equal(all.hitCount, 2, 'entries, not copies');
+  assert.equal(all.totalCopies, 5);
+  assert.equal(all.query, '');
+  assert.deepEqual(
+    Object.keys(g).sort(),
+    ['bestRank', 'cards', 'category', 'deckId', 'deckName', 'deckUpdatedAt', 'deckUrl', 'discount', 'totalQuantity'],
+  );
+  assert.equal(g.deckName, 'Deck a');
+  assert.equal(g.discount, 20);
+  assert.equal(g.totalQuantity, 5);
+});
+
+test('every card is included, with no limit', () => {
+  // The facets are counted from this, so a cap here would make them describe
+  // a slice while claiming to describe the catalogue.
+  const big = d('big', Array.from({ length: 5000 }, (_, i) => c(`Card ${i}`)));
+  const all = allCards(cat([big]));
+  assert.equal(all.hitCount, 5000);
+  assert.equal(all.decks[0]!.cards.length, 5000);
+});
+
+test('decks keep the seller\'s own order', () => {
+  // Nothing was matched, so nothing ranks above anything else.
+  const all = allCards(cat([d('z', [c('A')]), d('a', [c('B')]), d('m', [c('C')])]));
+  assert.deepEqual(all.decks.map((g: any) => g.deckId), ['z', 'a', 'm']);
+  assert.ok(all.decks.every((g: any) => g.bestRank === 0));
+});
+
+test('an empty deck is left out rather than shown with nothing in it', () => {
+  const all = allCards(cat([d('a', [c('One')]), d('empty', [])]));
+  assert.equal(all.deckCount, 1);
+  assert.equal(all.decks[0]!.deckId, 'a');
+});
+
+test('a missing index yields an empty catalogue, never an exception', () => {
+  for (const bad of [null, undefined, {}, { decks: [] }]) {
+    const all = allCards(bad as any);
+    assert.deepEqual(all.decks, []);
+    assert.equal(all.hitCount, 0);
+    assert.equal(all.totalCopies, 0);
+  }
+});
+
+test('the catalogue holds every card a search could find', () => {
+  // Against the real fixture decks: browsing must not be able to show less
+  // than searching does.
+  const decks = (Object.values(FIXTURES) as any[]).map((fx, i) => {
+    const parsed = parseDeckPage(readFixture(fx.file), fx.deckId);
+    return d(`d${i}`, parsed.cards);
+  });
+  const all = allCards(cat(decks));
+  const everyCard = decks.reduce((n, deck) => n + deck.cards.length, 0);
+
+  assert.equal(all.hitCount, everyCard);
+  const found = search(cat(decks) as any, 'Sol Ring').hitCount;
+  const inAll = all.decks.reduce(
+    (n: number, g: any) => n + g.cards.filter((x: any) => x.name === 'Sol Ring').length, 0);
+  assert.equal(inAll, found, 'a search finds exactly what browsing holds');
 });

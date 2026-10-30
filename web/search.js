@@ -141,6 +141,48 @@ export function search(index, query, opts = {}) {
 }
 
 /**
+ * The whole catalogue, shaped as a result.
+ *
+ * So the filters can be used on their own: "every Pauper-legal red card under
+ * two dollars" is a question with no card name in it, and until this existed
+ * there was no way to ask it.
+ *
+ * Deliberately unlimited, unlike `search()`. The facet counts are computed
+ * from whatever this returns, so a cap here would make them describe a slice
+ * while claiming to describe the catalogue. Bounding the number of rows drawn
+ * is the renderer's job, where it costs nothing but a line of text.
+ *
+ * @param {{decks: IndexDeck[]} | null | undefined} index
+ */
+export function allCards(index) {
+  const groups = [];
+  let hitCount = 0;
+  let totalCopies = 0;
+
+  for (const deck of index?.decks ?? []) {
+    if (!deck.cards?.length) continue;
+    const totalQuantity = deck.cards.reduce((n, c) => n + c.quantity, 0);
+    hitCount += deck.cards.length;
+    totalCopies += totalQuantity;
+    groups.push({
+      deckId: deck.id,
+      deckName: deck.name,
+      deckUrl: deck.url,
+      category: deck.category,
+      discount: deck.discount ?? null,
+      deckUpdatedAt: deck.updatedAt,
+      // Nothing was matched, so nothing ranks better than anything else; the
+      // seller's own page order is the only order there is.
+      bestRank: 0,
+      totalQuantity,
+      cards: deck.cards,
+    });
+  }
+
+  return { query: '', deckCount: groups.length, hitCount, totalCopies, decks: groups };
+}
+
+/**
  * Distinct card names for typeahead, prefix matches first.
  * @param {{decks: IndexDeck[]} | null | undefined} index
  * @param {string | null | undefined} query

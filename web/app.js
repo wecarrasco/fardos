@@ -1,5 +1,5 @@
 import { CONFIG, repoUrl, actionsUrl } from './config.js';
-import { search, suggest } from './search.js';
+import { search, suggest, allCards } from './search.js';
 import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
@@ -379,6 +379,31 @@ function priceNote(card) {
           >${parts.join('')}</div>`;
 }
 
+/**
+ * How many card rows are drawn at once.
+ *
+ * Not a limit on what is found: the summary and every facet count the whole
+ * result, and only the drawing stops here. Two thousand rows is already
+ * ~28,000 DOM nodes, which is where a phone starts to feel it, and nobody
+ * scrolls past it anyway.
+ */
+const MAX_ROWS = 2000;
+
+/** Trim a result to MAX_ROWS of cards, keeping whole decks in order. */
+function capRows(data) {
+  if (data.hitCount <= MAX_ROWS) return { data, hidden: 0 };
+
+  const decks = [];
+  let left = MAX_ROWS;
+  for (const d of data.decks) {
+    if (left <= 0) break;
+    const cards = d.cards.slice(0, left);
+    left -= cards.length;
+    decks.push({ ...d, cards });
+  }
+  return { data: { ...data, decks }, hidden: data.hitCount - MAX_ROWS };
+}
+
 function renderResults(data, opts = {}) {
   if (!data.decks.length) {
     resultsEl.innerHTML = '';
@@ -397,8 +422,15 @@ function renderResults(data, opts = {}) {
      `across <b>${data.deckCount}</b> ${data.deckCount === 1 ? 'deck' : 'decks'} ` +
      `(<b>${data.hitCount}</b> matching ${data.hitCount === 1 ? 'entry' : 'entries'}).`);
 
+  const { data: shown, hidden } = capRows(data);
+  if (hidden) {
+    summaryEl.innerHTML +=
+      ` <span class="count-note">Showing the first ${MAX_ROWS.toLocaleString()}; ` +
+      `narrow it with the filters to see the rest.</span>`;
+  }
+
   rendered = [];
-  resultsEl.innerHTML = data.decks.map((d) => `
+  resultsEl.innerHTML = shown.decks.map((d) => `
     <section class="deck">
       <div class="deck-head">
         <div class="deck-title">
@@ -417,19 +449,42 @@ function renderResults(data, opts = {}) {
 
 function runSearch(q) {
   if (!index) return;
-  if (!q.trim()) {
-    resultsEl.innerHTML = '';
-    summaryEl.hidden = true;
-    filtersEl.hidden = true;
-    emptyEl.hidden = false;
-    emptyEl.className = 'empty';
-    emptyEl.textContent = 'Type a card name to see which decks have it.';
-    return;
-  }
+  if (!q.trim()) return browseAll();
 
   renderFiltered(search(index, q), {}, () => runSearch(q));
   $('suggestions').innerHTML = suggest(index, q, 10)
     .map((n) => `<option value="${esc(n)}">`).join('');
+}
+
+/**
+ * No query: offer the whole catalogue to the filters.
+ *
+ * Not every question starts with a card name. "Pauper-legal red cards under
+ * two dollars" has none in it, and until the filters worked on their own
+ * there was no way to ask it.
+ *
+ * Nothing is drawn until something narrows it, which is why the facets are
+ * built from the whole catalogue but `renderResults` is handed an empty set.
+ * Nine thousand rows is not a browsing experience, and it is not what anyone
+ * opening the page wanted to see either.
+ */
+function browseAll() {
+  const everything = allCards(index);
+  const total = everything.hitCount.toLocaleString();
+
+  renderFiltered(everything, {
+    emptyText:
+      `Type a card name above, or use the filters to search all ${total} cards.`,
+  }, browseAll, (filtered, opts) => {
+    if (!isFiltered(filters)) {
+      // Show the bar, not the catalogue behind it.
+      return renderResults({ ...everything, decks: [] }, opts);
+    }
+    renderResults(filtered, {
+      ...opts,
+      emptyText: 'Nothing in the catalogue matches those filters.',
+    });
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -867,7 +922,6 @@ async function loadIndex() {
     qInput.disabled = false;
     $('update-btn').disabled = false;
     emptyEl.className = 'empty';
-    emptyEl.textContent = 'Type a card name to see which decks have it.';
 
     newBadgeCutoff = arrivalCutoff(index, { days: 7 });
     renderNewCount();
