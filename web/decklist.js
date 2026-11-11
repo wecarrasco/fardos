@@ -92,12 +92,16 @@ export function looksLikeCsv(text) {
   return at.name !== undefined;
 }
 
-/** Foil is spelled several ways; "normal" and "" are the only clear negatives. */
-const isFoilValue = (v) => {
-  const s = String(v ?? '').toLowerCase().trim();
-  if (!s || s === 'normal' || s === 'false' || s === 'no' || s === '0' || s === 'none') return false;
-  return true;
-};
+/**
+ * Foil is spelled several ways, so the negatives are listed and everything
+ * else counts as a foil.
+ *
+ * "nonfoil" is the one that bites: it contains the word, and Card Kingdom
+ * writes it on every ordinary card. Reading it as a positive marked a whole
+ * list foil.
+ */
+const NOT_FOIL = new Set(['', 'normal', 'nonfoil', 'non-foil', 'false', 'no', '0', 'none', 'regular']);
+const isFoilValue = (v) => !NOT_FOIL.has(String(v ?? '').toLowerCase().trim());
 
 function parseCsv(text) {
   const rows = String(text ?? '').split(/\r?\n/).filter((l) => l.trim());
@@ -287,6 +291,20 @@ function buildNameIndex(index) {
  * @param {DecklistEntry[]} entries
  * @returns {{matches: DecklistMatch[], summary: DecklistSummary}}
  */
+/**
+ * Is this card the printing the list asked for?
+ *
+ * The set may arrive as a code or as a full name: ManaBox exports "mh3", Card
+ * Kingdom's edition column says "Modern Horizons 3", and someone typing a line
+ * by hand uses whichever they have. Accepting both costs one comparison and
+ * saves the preference from being silently dropped on every Card Kingdom list.
+ */
+function isNamedPrinting(card, entry) {
+  const sameSet = card.setId === entry.setId ||
+    (!!card.setName && normalizeCardName(card.setName) === normalizeCardName(entry.setId));
+  return sameSet && (!entry.collectorNumber || card.collectorNumber === entry.collectorNumber);
+}
+
 export function matchDecklist(index, entries) {
   const byName = buildNameIndex(index);
   /** @type {DecklistMatch[]} */
@@ -298,8 +316,7 @@ export function matchDecklist(index, entries) {
     // Narrow to the requested printing when the list names one and we have it.
     const wantsPrinting = entry.setId !== null;
     const exact = wantsPrinting
-      ? found.filter((f) => f.card.setId === entry.setId &&
-          (!entry.collectorNumber || f.card.collectorNumber === entry.collectorNumber))
+      ? found.filter((f) => isNamedPrinting(f.card, entry))
       : found;
     const pool = exact.length ? exact : found;
 

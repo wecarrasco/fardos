@@ -205,3 +205,89 @@ test('frontFace takes the half people type', () => {
   assert.equal(frontFace('Invasion of Arcavios // Invocation of the Founders'), 'Invasion of Arcavios');
   assert.equal(frontFace('Sol Ring'), 'Sol Ring');
 });
+
+/* ---------------------------------------------------------------- *
+ * Card Kingdom
+ * ---------------------------------------------------------------- */
+
+// Card Kingdom's documented CSV carries card name, edition, foil/nonfoil and
+// quantity. The column aliases already cover all four, so the format needs no
+// parser of its own -- only the two things it says differently.
+const CK = [
+  'Card Name,Edition,Foil,Quantity',
+  'Lightning Bolt,Modern Horizons 3,nonfoil,4',
+  '"Jace, Beleren",Lorwyn,foil,1',
+  'Sol Ring,Commander 2021,,2',
+].join('\n');
+
+test('a Card Kingdom CSV is read without a parser of its own', () => {
+  assert.equal(looksLikeCsv(CK), true);
+  const out = parseDecklist(CK);
+  assert.equal(out.skipped, 0);
+  assert.deepEqual(out.entries.map((e: any) => [e.quantity, e.name]), [
+    [4, 'Lightning Bolt'], [1, 'Jace, Beleren'], [2, 'Sol Ring'],
+  ]);
+});
+
+test('"nonfoil" is not a foil', () => {
+  // It contains the word, and Card Kingdom writes it on every ordinary card,
+  // so reading it as a positive marked whole lists foil.
+  const out = parseDecklist(CK);
+  assert.deepEqual(out.entries.map((e: any) => e.foil), [false, true, false]);
+
+  for (const v of ['nonfoil', 'NonFoil', 'non-foil', 'normal', 'regular', 'no', '']) {
+    assert.equal(parseDecklist(`Name,Foil\nSol Ring,${v}`).entries[0]!.foil, false, v);
+  }
+  for (const v of ['foil', 'Foil', 'etched', 'true', 'yes']) {
+    assert.equal(parseDecklist(`Name,Foil\nSol Ring,${v}`).entries[0]!.foil, true, v);
+  }
+});
+
+test('a set named in full narrows the printing, like a set code does', () => {
+  // Card Kingdom's edition column says "Modern Horizons 3" where ManaBox says
+  // "mh3". Without this the preference was silently dropped on every CK list.
+  const index = {
+    decks: [deck('a', 10, [
+      card('Sol Ring', { setId: 'mh3', setName: 'Modern Horizons 3', quantity: 1 }),
+      card('Sol Ring', { setId: 'c21', setName: 'Commander 2021', collectorNumber: '2', quantity: 7 }),
+    ])],
+  };
+
+  const byName = matchDecklist(index, parseDecklist('Card Name,Edition,Quantity\nSol Ring,Modern Horizons 3,1').entries).matches[0]!;
+  assert.equal(byName.available, 1, 'narrowed to the Modern Horizons printing');
+
+  const byCode = matchDecklist(index, parseDecklist('1 Sol Ring (MH3)').entries).matches[0]!;
+  assert.equal(byCode.available, 1, 'the set code still works');
+});
+
+test('a set we do not stock still shows the card, however it was named', () => {
+  // The rule the plain-list path already followed: a named printing narrows
+  // but never hides.
+  const index = { decks: [deck('a', 10, [card('Sol Ring', { setId: 'mh3', setName: 'Modern Horizons 3', quantity: 4 })])] };
+  const m = matchDecklist(index, parseDecklist('Card Name,Edition,Quantity\nSol Ring,Alpha,1').entries).matches[0]!;
+  assert.equal(m.status, 'available');
+  assert.equal(m.available, 4);
+});
+
+test('a Card Kingdom list reports where each card is, and what is missing', () => {
+  // The whole point of the tab, driven from a CK file end to end.
+  const index = {
+    decks: [
+      deck('a', 20, [card('Lightning Bolt', { setId: 'mh3', setName: 'Modern Horizons 3', quantity: 4 })]),
+      deck('b', 10, [card('Sol Ring', { quantity: 1 })]),
+    ],
+  };
+  const { matches, summary } = matchDecklist(index, parseDecklist(CK).entries);
+
+  const bolt = matches.find((m: any) => m.entry.name === 'Lightning Bolt')!;
+  assert.equal(bolt.status, 'available');
+  assert.equal(bolt.sources[0]!.deckUrl, 'https://manabox.app/decks/a', 'a link to where it is');
+
+  const sol = matches.find((m: any) => m.entry.name === 'Sol Ring')!;
+  assert.equal(sol.status, 'partial', 'two wanted, one stocked');
+
+  const jace = matches.find((m: any) => m.entry.name === 'Jace, Beleren')!;
+  assert.equal(jace.status, 'missing');
+  assert.deepEqual(jace.sources, []);
+  assert.ok(summary.missing >= 1);
+});

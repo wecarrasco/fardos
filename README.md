@@ -230,6 +230,7 @@ The **Decklist** tab takes a whole list at once and reports what the seller has,
 and at which discount. It reads:
 
 - a **ManaBox** CSV export
+- a **Card Kingdom** CSV export
 - a **Moxfield** CSV export
 - a plain list — `4 Lightning Bolt`, `4x Sol Ring`, `1 Sol Ring (SLD) 2467`,
   `2 Ocelot Pride *F*`, or just a bare card name
@@ -246,9 +247,15 @@ is missing.
 ### Why the two CSVs need different handling
 
 ManaBox writes `Name,Set code,Collector number,Foil,Quantity`; Moxfield writes
-`"Count","Name","Edition","Foil","Collector Number"`. Columns are matched by a list of
-aliases, so both work without knowing which app produced the file, and quoted fields
-containing commas — `"Jace, Beleren"` — survive.
+`"Count","Name","Edition","Foil","Collector Number"`; Card Kingdom writes a card name,
+edition, foil/nonfoil and quantity. Columns are matched by a list of aliases, so all
+three work without knowing which app produced the file, and quoted fields containing
+commas — `"Jace, Beleren"` — survive.
+
+Card Kingdom needed no parser of its own, only two things it says differently. It writes
+`nonfoil` on ordinary cards, which contains the word and was being read as a positive —
+that marked whole lists foil. And its edition column holds a set *name* where ManaBox
+holds a code, so a named printing is now matched against either.
 
 ### Matching rules
 
