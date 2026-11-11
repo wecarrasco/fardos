@@ -339,8 +339,8 @@ footer a:hover { color: var(--link); }
 .dl-have { font-size: 12.5px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dl-have b { color: var(--text); }
 
-.dl-missing { margin-top: 18px; }
-.dl-missing textarea {
+.dl-export { margin-top: 18px; }
+.dl-export textarea {
   width: 100%; min-height: 70px; margin-top: 6px; padding: 8px 10px;
   font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--muted); background: var(--panel-2);

@@ -848,6 +848,15 @@ function renderDecklist() {
     (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '');
 
   const missing = matches.filter((m) => m.status === 'missing');
+  const stocked = matches.filter((m) => m.status !== 'missing');
+
+  /** A list to select and copy. Both halves of the answer leave the same way. */
+  const exportBlock = (title, hint, lines) => (lines.length ? `
+    <div class="dl-export">
+      <h2 style="font-size:15px;margin:0 0 4px">${esc(title)} (${lines.length})</h2>
+      <div class="setinfo">${esc(hint)}</div>
+      <textarea readonly rows="${Math.min(10, lines.length + 1)}">${esc(lines.join('\n'))}</textarea>
+    </div>` : '');
 
   resultsEl.innerHTML = `
     <div class="dl-tiles">
@@ -869,14 +878,20 @@ function renderDecklist() {
           <div class="dl-have"><b>${d.cards}</b> of your cards</div>
         </div>`).join('')}</div>` : ''}
 
-    ${missing.length ? `
-      <div class="dl-missing">
-        <h2 style="font-size:15px;margin:0 0 4px">Not stocked (${missing.length})</h2>
-        <div class="setinfo">Copy this back into your deck builder, or try again after an update.</div>
-        <textarea readonly rows="${Math.min(10, missing.length + 1)}">${
-          esc(missing.map((m) => `${m.wanted} ${m.entry.name}`).join('\n'))
-        }</textarea>
-      </div>` : ''}`;
+    ${exportBlock(
+      'Stocked',
+      'Copy this to send the seller. A card the seller is short of is listed at the number they actually have, not the number you asked for.',
+      // Never more than exists: this list is a request, and asking for four
+      // when two remain puts a number in it nobody can fill. The cart applies
+      // the same rule to its message.
+      stocked.map((m) => `${Math.min(m.wanted, m.available)} ${m.entry.name}`),
+    )}
+
+    ${exportBlock(
+      'Not stocked',
+      'Copy this back into your deck builder, or try again after an update.',
+      missing.map((m) => `${m.wanted} ${m.entry.name}`),
+    )}`;
 }
 
 listInput.addEventListener('input', () => {
