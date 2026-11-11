@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDecklist, matchDecklist, splitCsvRow, looksLikeCsv, frontFace }
+import { parseDecklist, matchDecklist, splitCsvRow, looksLikeCsv, frontFace, stockedMessage }
   from '../web/decklist.js';
 
 const names = (r: { entries: any[] }) => r.entries.map((e) => e.name);
@@ -290,4 +290,106 @@ test('a Card Kingdom list reports where each card is, and what is missing', () =
   assert.equal(jace.status, 'missing');
   assert.deepEqual(jace.sources, []);
   assert.ok(summary.missing >= 1);
+});
+
+/* ---------------------------------------------------------------- *
+ * The message to the seller
+ * ---------------------------------------------------------------- */
+
+const msgFor = (index: any, text: string) =>
+  stockedMessage(matchDecklist(index, parseDecklist(text).entries).matches);
+
+test('the message groups by deck, with the deck link under its name', () => {
+  // The link is the thing the seller opens, so it travels with the heading
+  // rather than being repeated on every line.
+  const index = {
+    decks: [
+      deck('a', 35, [card('Sol Ring', { setId: 'ltc', collectorNumber: '284', quantity: 4 })]),
+      deck('b', 10, [card('Lightning Bolt', { setId: 'm11', collectorNumber: '149', quantity: 4 })]),
+    ],
+  };
+  const text = msgFor(index, '2 Sol Ring\n1 Lightning Bolt');
+
+  assert.match(text, /Deck a \(35% off\)/);
+  assert.match(text, /https:\/\/manabox\.app\/decks\/a/);
+  assert.match(text, /^ {2}2x Sol Ring \(LTC\) #284$/m);
+  assert.match(text, /^ {2}1x Lightning Bolt \(M11\) #149$/m);
+  assert.match(text, /3 cards from 2 decks\./);
+  // The heading comes before its own cards.
+  assert.ok(text.indexOf('Deck a') < text.indexOf('2x Sol Ring'));
+});
+
+test('a foil is named as one', () => {
+  const index = { decks: [deck('a', null, [card('Sol Ring', { foil: true, quantity: 1 })])] };
+  assert.match(msgFor(index, '1 Sol Ring'), /1x Sol Ring \(SET\) #1 \[foil\]/);
+});
+
+test('a deck holding two printings is asked for both by name', () => {
+  // The reason every printing is kept rather than the first: asking for two of
+  // the plain one when the deck has one of each is asking for a card that is
+  // not there.
+  const index = {
+    decks: [deck('a', 20, [
+      card('Sol Ring', { setId: 'ltc', collectorNumber: '284', quantity: 1 }),
+      card('Sol Ring', { setId: 'c21', collectorNumber: '2', foil: true, quantity: 1 }),
+    ])],
+  };
+  const text = msgFor(index, '2 Sol Ring');
+  assert.match(text, /1x Sol Ring \(LTC\) #284$/m);
+  assert.match(text, /1x Sol Ring \(C21\) #2 \[foil\]/);
+  assert.match(text, /2 cards from 1 deck\./);
+});
+
+test('a card spills into the next deck only when the first runs short', () => {
+  // sources are ordered by discount, so the cheapest deck is emptied first.
+  const index = {
+    decks: [
+      deck('cheap', 35, [card('Sol Ring', { quantity: 2 })]),
+      deck('dear', 10, [card('Sol Ring', { quantity: 5 })]),
+    ],
+  };
+  const text = msgFor(index, '3 Sol Ring');
+  assert.match(text, /Deck cheap \(35% off\)/);
+  assert.match(text, /2x Sol Ring/);
+  assert.match(text, /Deck dear \(10% off\)/);
+  assert.match(text, /1x Sol Ring/);
+  assert.match(text, /3 cards from 2 decks\./);
+  assert.ok(text.indexOf('Deck cheap') < text.indexOf('Deck dear'), 'best discount first');
+});
+
+test('the message never asks for more than exists', () => {
+  // A request nobody can fill is worse than a short one.
+  const index = { decks: [deck('a', null, [card('Sol Ring', { quantity: 2 })])] };
+  const text = msgFor(index, '99 Sol Ring');
+  assert.match(text, /2x Sol Ring/);
+  assert.ok(!text.includes('99x'));
+  assert.match(text, /2 cards from 1 deck\./);
+});
+
+test('cards nobody stocks are left out of the message entirely', () => {
+  const index = { decks: [deck('a', null, [card('Sol Ring', { quantity: 1 })])] };
+  const text = msgFor(index, '1 Sol Ring\n1 Black Lotus');
+  assert.ok(!text.includes('Black Lotus'));
+  assert.match(text, /1 card from 1 deck\./, 'singular reads properly');
+});
+
+test('nothing stocked produces no message at all', () => {
+  const index = { decks: [deck('a', null, [card('Sol Ring')])] };
+  assert.equal(msgFor(index, '1 Black Lotus'), '');
+  assert.equal(stockedMessage([]), '');
+  assert.equal(stockedMessage(null as any), '');
+});
+
+test('a printing named in the list is the one asked for', () => {
+  // The narrowing rule reaching the message: name a printing and that is what
+  // the seller is asked for, not whichever copy came first.
+  const index = {
+    decks: [deck('a', null, [
+      card('Sol Ring', { setId: 'ltc', collectorNumber: '284', quantity: 1 }),
+      card('Sol Ring', { setId: 'sld', collectorNumber: '2467', quantity: 1 }),
+    ])],
+  };
+  const text = msgFor(index, '1 Sol Ring (SLD) 2467');
+  assert.match(text, /1x Sol Ring \(SLD\) #2467/);
+  assert.ok(!text.includes('LTC'));
 });

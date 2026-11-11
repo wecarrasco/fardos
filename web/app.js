@@ -5,7 +5,7 @@ import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
 import { cardPrice, formatPrice, describeTotals } from './prices.js';
-import { parseDecklist, matchDecklist } from './decklist.js';
+import { parseDecklist, matchDecklist, stockedMessage, allocateStock } from './decklist.js';
 import {
   emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, COLOUR_MODES, formatLabel,
 } from './filters.js';
@@ -827,19 +827,11 @@ function renderDecklist() {
   const { matches, summary } = matchDecklist(index, entries);
   emptyEl.hidden = true;
   summaryEl.hidden = false;
-  // Value of what can actually be supplied: the cheapest source for each card,
-  // capped at the number asked for. Counting every source would inflate it.
-  const supplied = matches.flatMap((m) => {
-    let left = Math.min(m.wanted, m.available);
-    const take = [];
-    for (const s of m.sources) {
-      if (left <= 0) break;
-      const n = Math.min(left, s.quantity);
-      take.push({ prices: s.card.prices, quantity: n });
-      left -= n;
-    }
-    return take;
-  });
+  // Value of what can actually be supplied, priced per printing. The same
+  // allocation the message uses, so the figure and the request agree on which
+  // copies are being talked about.
+  const supplied = allocateStock(matches)
+    .map((a) => ({ prices: a.card.prices, quantity: a.quantity }));
   const value = describeTotals(supplied, index?.priceSources);
 
   summaryEl.innerHTML =
@@ -849,13 +841,14 @@ function renderDecklist() {
 
   const missing = matches.filter((m) => m.status === 'missing');
   const stocked = matches.filter((m) => m.status !== 'missing');
+  const message = stockedMessage(matches);
 
   /** A list to select and copy. Both halves of the answer leave the same way. */
-  const exportBlock = (title, hint, lines) => (lines.length ? `
+  const exportBlock = (title, count, hint, body) => (body ? `
     <div class="dl-export">
-      <h2 style="font-size:15px;margin:0 0 4px">${esc(title)} (${lines.length})</h2>
+      <h2 style="font-size:15px;margin:0 0 4px">${esc(title)} (${count})</h2>
       <div class="setinfo">${esc(hint)}</div>
-      <textarea readonly rows="${Math.min(10, lines.length + 1)}">${esc(lines.join('\n'))}</textarea>
+      <textarea readonly rows="${Math.min(16, body.split('\n').length + 1)}">${esc(body)}</textarea>
     </div>` : '');
 
   resultsEl.innerHTML = `
@@ -879,18 +872,15 @@ function renderDecklist() {
         </div>`).join('')}</div>` : ''}
 
     ${exportBlock(
-      'Stocked',
-      'Copy this to send the seller. A card the seller is short of is listed at the number they actually have, not the number you asked for.',
-      // Never more than exists: this list is a request, and asking for four
-      // when two remain puts a number in it nobody can fill. The cart applies
-      // the same rule to its message.
-      stocked.map((m) => `${Math.min(m.wanted, m.available)} ${m.entry.name}`),
+      'Stocked', stocked.length,
+      'Send this to the seller. Grouped by deck with its link, and a card they are short of is asked for at the number they actually have.',
+      message,
     )}
 
     ${exportBlock(
-      'Not stocked',
+      'Not stocked', missing.length,
       'Copy this back into your deck builder, or try again after an update.',
-      missing.map((m) => `${m.wanted} ${m.entry.name}`),
+      missing.map((m) => `${m.wanted} ${m.entry.name}`).join('\n'),
     )}`;
 }
 

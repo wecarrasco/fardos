@@ -266,7 +266,7 @@ function buildNameIndex(index) {
  * @property {'available'|'partial'|'missing'} status
  * @property {number} wanted
  * @property {number} available total copies across every deck
- * @property {{deckId: string, deckName: string, deckUrl: string, discount: number|null, quantity: number, card: object}[]} sources
+ * @property {{deckId: string, deckName: string, deckUrl: string, discount: number|null, quantity: number, cards: object[]}[]} sources
  */
 
 /**
@@ -324,10 +324,13 @@ export function matchDecklist(index, entries) {
     const byDeck = new Map();
     for (const { card, deck } of pool) {
       const seen = byDeck.get(deck.id);
-      if (seen) seen.quantity += card.quantity;
+      // Every printing is kept, not just the first. One deck often holds the
+      // same card twice -- a foil and a plain, or two sets -- and a message to
+      // the seller naming only one of them asks for the wrong card.
+      if (seen) { seen.quantity += card.quantity; seen.cards.push(card); }
       else byDeck.set(deck.id, {
         deckId: deck.id, deckName: deck.name, deckUrl: deck.url,
-        discount: deck.discount ?? null, quantity: card.quantity, card,
+        discount: deck.discount ?? null, quantity: card.quantity, cards: [card],
       });
     }
 
@@ -377,4 +380,106 @@ function summarise(matches) {
     .slice(0, 8);
 
   return { lines, available, partial, missing, wantedCopies, foundCopies, topDecks };
+}
+
+/* ------------------------------------------------------------------ *
+ * The message to the seller
+ * ------------------------------------------------------------------ */
+
+/** One card line: "2x Sol Ring (LTC) #284 [foil]". */
+const cardLine = (n, name, card) =>
+  `  ${n}x ${name}` +
+  (card?.setId ? ` (${card.setId.toUpperCase()})` : '') +
+  (card?.collectorNumber ? ` #${card.collectorNumber}` : '') +
+  (card?.foil ? ' [foil]' : '');
+
+/**
+ * @typedef {object} Allocation
+ * @property {string} deckId
+ * @property {string} deckName
+ * @property {string} deckUrl
+ * @property {number|null} discount
+ * @property {string} name   as the list wrote it
+ * @property {object} card   the printing these copies come from
+ * @property {number} quantity
+ */
+
+/**
+ * Decide which copies come from which deck, and which printing within it.
+ *
+ * Unlike the cart, nobody has chosen where each card comes from -- the same
+ * card sits in twenty of these decks. The best-discounted deck is emptied
+ * first and spills into the next only when it runs short, which is what
+ * someone buying would do; `sources` is already in that order, so this is the
+ * order the page showed.
+ *
+ * Never more than exists. This feeds a request sent to a shop and a total
+ * shown to the reader, and a number nobody can fill is wrong in both.
+ *
+ * @param {DecklistMatch[]} matches
+ * @returns {Allocation[]}
+ */
+export function allocateStock(matches) {
+  /** @type {Allocation[]} */
+  const out = [];
+
+  for (const m of matches ?? []) {
+    let left = Math.min(m.wanted, m.available);
+
+    for (const source of m.sources) {
+      if (left <= 0) break;
+      let fromDeck = Math.min(left, source.quantity);
+      left -= fromDeck;
+
+      // Spread across the printings this deck holds, so a deck with a foil and
+      // a plain copy is asked for both by name rather than for two of one.
+      for (const card of source.cards) {
+        if (fromDeck <= 0) break;
+        const quantity = Math.min(fromDeck, card.quantity);
+        fromDeck -= quantity;
+        out.push({
+          deckId: source.deckId, deckName: source.deckName, deckUrl: source.deckUrl,
+          discount: source.discount, name: m.entry.name, card, quantity,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The stocked half of a list, as something to send the seller.
+ *
+ * Grouped by deck because that is how the stock is organised: a list sorted by
+ * card name would make the seller hunt through seventy decks for every line.
+ * The deck's link goes with its heading, since that is the thing they open.
+ *
+ * @param {DecklistMatch[]} matches
+ * @returns {string} empty when nothing is stocked
+ */
+export function stockedMessage(matches) {
+  /** @type {Map<string, {deckName: string, deckUrl: string, discount: number|null, lines: string[]}>} */
+  const groups = new Map();
+  let copies = 0;
+
+  for (const a of allocateStock(matches)) {
+    copies += a.quantity;
+    if (!groups.has(a.deckId)) {
+      groups.set(a.deckId, {
+        deckName: a.deckName, deckUrl: a.deckUrl, discount: a.discount, lines: [],
+      });
+    }
+    groups.get(a.deckId).lines.push(cardLine(a.quantity, a.name, a.card));
+  }
+
+  if (!groups.size) return '';
+
+  const out = ['Hi! I would like these cards:', ''];
+  for (const g of groups.values()) {
+    out.push(`${g.deckName}${g.discount ? ` (${g.discount}% off)` : ''}`);
+    out.push(g.deckUrl);
+    out.push(...g.lines, '');
+  }
+  out.push(`${copies} ${copies === 1 ? 'card' : 'cards'} from ${groups.size} ${groups.size === 1 ? 'deck' : 'decks'}.`);
+  return out.join('\n');
 }
