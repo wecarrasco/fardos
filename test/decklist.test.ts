@@ -314,7 +314,11 @@ test('the message groups by deck, with the deck link under its name', () => {
   assert.match(text, /https:\/\/manabox\.app\/decks\/a/);
   assert.match(text, /^ {2}2x Sol Ring \(LTC\) #284$/m);
   assert.match(text, /^ {2}1x Lightning Bolt \(M11\) #149$/m);
-  assert.match(text, /3 cards from 2 decks\./);
+  // The cards and nothing else: no greeting, no total, no blank edges. The
+  // sender writes their own opening, and the counts are on the page already.
+  assert.equal(text, text.trim());
+  assert.match(text, /^Deck a/);
+  assert.match(text, /#149$/);
   // The heading comes before its own cards.
   assert.ok(text.indexOf('Deck a') < text.indexOf('2x Sol Ring'));
 });
@@ -337,7 +341,7 @@ test('a deck holding two printings is asked for both by name', () => {
   const text = msgFor(index, '2 Sol Ring');
   assert.match(text, /1x Sol Ring \(LTC\) #284$/m);
   assert.match(text, /1x Sol Ring \(C21\) #2 \[foil\]/);
-  assert.match(text, /2 cards from 1 deck\./);
+  assert.equal(text.match(/Sol Ring/g)?.length, 2, 'two lines, one per printing');
 });
 
 test('a card spills into the next deck only when the first runs short', () => {
@@ -353,7 +357,6 @@ test('a card spills into the next deck only when the first runs short', () => {
   assert.match(text, /2x Sol Ring/);
   assert.match(text, /Deck dear \(10% off\)/);
   assert.match(text, /1x Sol Ring/);
-  assert.match(text, /3 cards from 2 decks\./);
   assert.ok(text.indexOf('Deck cheap') < text.indexOf('Deck dear'), 'best discount first');
 });
 
@@ -363,14 +366,13 @@ test('the message never asks for more than exists', () => {
   const text = msgFor(index, '99 Sol Ring');
   assert.match(text, /2x Sol Ring/);
   assert.ok(!text.includes('99x'));
-  assert.match(text, /2 cards from 1 deck\./);
 });
 
 test('cards nobody stocks are left out of the message entirely', () => {
   const index = { decks: [deck('a', null, [card('Sol Ring', { quantity: 1 })])] };
   const text = msgFor(index, '1 Sol Ring\n1 Black Lotus');
   assert.ok(!text.includes('Black Lotus'));
-  assert.match(text, /1 card from 1 deck\./, 'singular reads properly');
+  assert.match(text, /1x Sol Ring/);
 });
 
 test('nothing stocked produces no message at all', () => {

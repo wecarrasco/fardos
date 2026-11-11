@@ -474,12 +474,13 @@ export function stockedMessage(matches) {
 
   if (!groups.size) return '';
 
-  const out = ['Hi! I would like these cards:', ''];
+  // Just the cards. No greeting and no total: whoever sends this writes their
+  // own opening, and the counts are already on the page they are reading.
+  const out = [];
   for (const g of groups.values()) {
     out.push(`${g.deckName}${g.discount ? ` (${g.discount}% off)` : ''}`);
     out.push(g.deckUrl);
     out.push(...g.lines, '');
   }
-  out.push(`${copies} ${copies === 1 ? 'card' : 'cards'} from ${groups.size} ${groups.size === 1 ? 'deck' : 'decks'}.`);
-  return out.join('\n');
+  return out.join('\n').trimEnd();
 }
