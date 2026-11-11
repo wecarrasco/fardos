@@ -340,6 +340,11 @@ footer a:hover { color: var(--link); }
 .dl-have b { color: var(--text); }
 
 .dl-export { margin-top: 18px; }
+.dl-export-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 4px;
+}
+.dl-export-head .btn { padding: 5px 12px; font-size: 12.5px; }
 .dl-export textarea {
   width: 100%; min-height: 70px; margin-top: 6px; padding: 8px 10px;
   font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;

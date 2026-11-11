@@ -843,10 +843,13 @@ function renderDecklist() {
   const stocked = matches.filter((m) => m.status !== 'missing');
   const message = stockedMessage(matches);
 
-  /** A list to select and copy. Both halves of the answer leave the same way. */
+  /** A list to copy. Both halves of the answer leave the same way. */
   const exportBlock = (title, count, hint, body) => (body ? `
     <div class="dl-export">
-      <h2 style="font-size:15px;margin:0 0 4px">${esc(title)} (${count})</h2>
+      <div class="dl-export-head">
+        <h2 style="font-size:15px;margin:0">${esc(title)} (${count})</h2>
+        <button type="button" class="btn secondary" data-copy>Copy</button>
+      </div>
       <div class="setinfo">${esc(hint)}</div>
       <textarea readonly rows="${Math.min(16, body.split('\n').length + 1)}">${esc(body)}</textarea>
     </div>` : '');
@@ -883,6 +886,36 @@ function renderDecklist() {
       missing.map((m) => `${m.wanted} ${m.entry.name}`).join('\n'),
     )}`;
 }
+
+/**
+ * Copy the list beside the button.
+ *
+ * Unlike the cart's copy, the text is already on screen here, so a refused
+ * clipboard selects the box rather than printing the whole message a second
+ * time. Delegated, because the blocks are rebuilt on every check.
+ */
+resultsEl.addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-copy]');
+  const box = btn?.closest('.dl-export')?.querySelector('textarea');
+  if (!box) return;
+
+  const say = (msg) => {
+    btn.textContent = msg;
+    // The block may be rebuilt before this fires; writing to a detached
+    // button is harmless.
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+  };
+
+  try {
+    await navigator.clipboard.writeText(box.value);
+    say('Copied');
+  } catch {
+    // Refused outside a secure context, and in some browsers. Pointing at the
+    // text that is already there beats failing silently.
+    box.select();
+    say('Press Ctrl/Cmd+C');
+  }
+});
 
 listInput.addEventListener('input', () => {
   try { localStorage.setItem(LIST_KEY, listInput.value); } catch { /* private mode */ }
