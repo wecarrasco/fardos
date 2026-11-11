@@ -10,14 +10,23 @@ on:
   schedule:
     - cron: '0 8,20 * * *'
 
-  # A change to the site itself redeploys immediately. This path does not
-  # scrape: it republishes around the index already live, so shipping a
-  # frontend fix takes seconds and costs the source sites nothing.
+  # A change to the site itself redeploys immediately without scraping: it
+  # republishes around the index already live, so shipping a frontend fix takes
+  # seconds and costs the source sites nothing.
+  #
+  # The two committed data files are the exception. decks.json is the only way
+  # a new deck is ever discovered, and legality.json decides what every card's
+  # legality says. Republishing around the old index after either changed would
+  # deploy a file whose whole point is data it does not yet contain, so those
+  # pushes scrape instead -- see "Decide whether this run scrapes" below.
   push:
     branches: [main]
     paths:
       - 'web/**'
+      - 'src/**'
       - 'scripts/**'
+      - 'decks.json'
+      - 'legality.json'
       - '.github/workflows/update-index.yml'
 
 # Only one scrape at a time. A run already in progress is left to finish rather
@@ -35,7 +44,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Full history: deciding whether a push touched a data file means diffing
+      # against the commit it started from, which a shallow clone does not have.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -61,17 +74,49 @@ jobs:
             "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/index.json" \
             || echo "no published index yet"
 
-      # A push only changed the site, so keep the published data and rebuild
-      # around it. Anything else -- the button, the schedule -- scrapes.
+      # The button and the schedule always scrape. A push scrapes only when it
+      # changed a file the index is built from; otherwise it keeps the
+      # published data and rebuilds the site around it.
+      - name: Decide whether this run scrapes
+        id: decide
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != "push" ]; then
+            reason="not a push"; scrape=true
+          elif ! git rev-parse --quiet --verify "${BEFORE}^{commit}" >/dev/null 2>&1; then
+            # A new branch or rewritten history leaves nothing to diff against.
+            # Scraping costs three minutes; guessing wrong the other way
+            # publishes an index missing decks, which nobody would notice.
+            reason="cannot tell what changed"; scrape=true
+          # Anything the index is built FROM, not merely the site built around
+          # it: the two data files, the builder, and the modules it imports.
+          # A frontend-only change keeps the published data; a change to what
+          # goes INTO the index has to rebuild it, or the new code ships with
+          # nothing behind it. That has happened twice -- market prices, then
+          # the mana filters -- and looked like a healthy green build both
+          # times. A needless scrape costs three minutes on a job that already
+          # runs twice a day.
+          elif git diff --name-only "$BEFORE" "$AFTER" \
+               | grep -qE '^(decks|legality)\.json$|^src/|^scripts/build-index\.ts$'; then
+            reason="the index's own inputs changed"; scrape=true
+          else
+            reason="site-only change"; scrape=false
+          fi
+          echo "scrape=${scrape}" >> "$GITHUB_OUTPUT"
+          echo "${reason}: scrape=${scrape}" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Rebuild the site around the published index
-        if: github.event_name == 'push'
+        if: steps.decide.outputs.scrape == 'false'
         id: redeploy
         run: |
           summary="$(npm run --silent build:index -- --no-scrape)"
           echo "summary=${summary}" >> "$GITHUB_OUTPUT"
 
       - name: Scrape and build the index
-        if: github.event_name != 'push'
+        if: steps.decide.outputs.scrape == 'true'
         id: build
         run: |
           summary="$(npm run --silent build:index)"

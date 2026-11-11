@@ -82,12 +82,24 @@ one and the page will ask for it again.
 
 ### Code changes deploy themselves
 
-Pushing to `main` redeploys the site, but **without scraping**: it republishes around the
-index already live. A frontend change ships in seconds and costs the source sites
-nothing. Only the button and the schedule fetch fresh data.
+Pushing to `main` redeploys the site. Whether it also scrapes depends on what you
+changed, which the workflow works out for itself:
 
-This matters because pushing used to do nothing at all — a change sat unpublished until
-the next scheduled scrape, up to twelve hours later.
+| What the push touched | What happens | How long |
+| --- | --- | --- |
+| `web/**` — the frontend only | Republishes around the index already live | seconds |
+| `decks.json`, `legality.json`, `src/**`, `scripts/build-index.ts` | Full scrape, then publishes | ~3 min |
+
+The split is "the site built around the index" against "what goes into the index". A
+frontend fix ships in seconds and costs the source sites nothing. A change to what the
+index *contains* has to rebuild it — otherwise the new code goes live with nothing
+behind it, which has happened twice here (market prices, then the mana filters) and
+looked like a healthy green build both times.
+
+When it cannot tell what a push changed — a new branch, or rewritten history — it
+scrapes. Three wasted minutes beats publishing an index quietly missing decks.
+
+The run summary names which path it took and why.
 
 ### Refreshing the data
 
@@ -112,7 +124,8 @@ capture it:
 1. Open the seller's Linktree in your browser and save the page
    (File → Save Page As).
 2. `npm run decks:update -- ~/Downloads/saved-page.html`
-3. Commit the updated `decks.json` and push.
+3. Commit the updated `decks.json` and push. The push scrapes on its own, so the new
+   decks are live about three minutes later — there is no button to remember.
 
 It prints what moved — decks added, removed, and any whose discount changed — so the
 change is visible rather than silent. The same `parseLinktree()` the scraper always used
