@@ -498,8 +498,3 @@ footer a:hover { color: var(--link); }
 .cart-opt { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .cart-opt input { accent-color: var(--accent); }
 
-.cart-fallback {
-  width: 100%; margin-bottom: 12px; padding: 10px; border-radius: 10px;
-  color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
-  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-}

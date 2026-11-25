@@ -11,7 +11,8 @@ import {
 } from './filters.js';
 import { DEFAULT_SORT, SORT_LABELS, availableSorts, isSorted, pruneSort, sortResult } from './sorting.js';
 import {
-  addToCart, cartCount, cartMessage, loadCart, removeLine, resolveCart, saveCart, wantedFrom,
+  addToCart, cartCount, cartMessage, loadCart, removeLine, resolveCart, saveCart,
+  setQuantity, wantedFrom,
 } from './cart.js';
 
 const $ = (id) => document.getElementById(id);
@@ -131,6 +132,27 @@ const legalFormats = () => index?.legalFormats ?? [];
 let lastResult = null;
 /** What to call when a filter changes. */
 let rerender = () => {};
+
+/**
+ * A block of text to take away, with its own copy button.
+ *
+ * Shared by the decklist and the cart: both end in "here is the list, now
+ * send it", and a second implementation would drift.
+ *
+ * @param {string} title
+ * @param {number|string} count shown beside the title
+ * @param {string} hint one line under it
+ * @param {string} body the text itself; empty means no block at all
+ */
+const exportBlock = (title, count, hint, body) => (body ? `
+  <div class="dl-export">
+    <div class="dl-export-head">
+      <h2 style="font-size:15px;margin:0">${esc(title)} (${count})</h2>
+      <button type="button" class="btn secondary" data-copy>Copy</button>
+    </div>
+    <div class="setinfo">${esc(hint)}</div>
+    <textarea readonly rows="${Math.min(16, body.split('\n').length + 1)}">${esc(body)}</textarea>
+  </div>` : '');
 
 /** A <select> whose first option means "no restriction". */
 function selectControl(key, anyLabel, options, current, format = (o) => o.label) {
@@ -843,17 +865,6 @@ function renderDecklist() {
   const stocked = matches.filter((m) => m.status !== 'missing');
   const message = stockedMessage(matches);
 
-  /** A list to copy. Both halves of the answer leave the same way. */
-  const exportBlock = (title, count, hint, body) => (body ? `
-    <div class="dl-export">
-      <div class="dl-export-head">
-        <h2 style="font-size:15px;margin:0">${esc(title)} (${count})</h2>
-        <button type="button" class="btn secondary" data-copy>Copy</button>
-      </div>
-      <div class="setinfo">${esc(hint)}</div>
-      <textarea readonly rows="${Math.min(16, body.split('\n').length + 1)}">${esc(body)}</textarea>
-    </div>` : '');
-
   resultsEl.innerHTML = `
     <div class="dl-tiles">
       <div class="dl-tile ok"><div class="v">${summary.available}</div><div class="k">fully available</div></div>
@@ -1254,7 +1265,6 @@ function cartGroup(group) {
   const rows = group.items.map((item) => {
     const c = item.card;
     const short = item.issue === 'fewer';
-    const n = Math.min(item.want, item.available);
     // Registered the same way a result row is, so the preview panel opens here
     // too: reviewing a list is exactly when you want to see what you picked.
     const ref = rendered.push({ card: c, deckId: group.deckId }) - 1;
@@ -1263,7 +1273,14 @@ function cartGroup(group) {
         <div class="cart-q">
           <button type="button" class="cart-x" data-drop="${esc(item.line.key)}"
                   aria-label="Remove ${esc(item.line.name)}">&times;</button>
-          <b>${n}&times;</b>
+          <span class="stepper" role="group" aria-label="Copies of ${esc(item.line.name)}">
+            <button type="button" data-cart-step="${esc(item.line.key)}" data-by="-1"
+                    data-cap="${item.available}" aria-label="One fewer">&minus;</button>
+            <b>${item.want}</b>
+            <button type="button" data-cart-step="${esc(item.line.key)}" data-by="1"
+                    data-cap="${item.available}" aria-label="One more"
+                    ${item.want >= item.available ? 'disabled title="That is all this deck has"' : ''}>+</button>
+          </span>
         </div>
         <div>
           <div class="cart-name">
@@ -1344,14 +1361,38 @@ function renderCart() {
        </section>`
     : '';
 
-  resultsEl.innerHTML = resolved.groups.map(cartGroup).join('') + goneBlock;
+  // The message itself, visible rather than hidden behind a button. The
+  // decklist tab reached the same conclusion: you want to read what you are
+  // about to send before you send it.
+  const message = cartMessage(resolved, {
+    includePrices: cartPricesEl.checked,
+    sources: index?.priceSources ?? [],
+    formatPrice,
+  });
+
+  resultsEl.innerHTML = resolved.groups.map(cartGroup).join('') + goneBlock + exportBlock(
+    'Your list', resolved.copies,
+    'Send this to the seller. Cards that have left a deck are not in it.',
+    message,
+  );
 }
 
-/** Removing from inside the cart redraws it: the list just got shorter. */
+/** Changing a line from inside the cart redraws it: the list just changed. */
 resultsEl.addEventListener('click', (ev) => {
   const drop = ev.target.closest('[data-drop]');
-  if (!drop) return;
-  cart = removeLine(cart, drop.dataset.drop);
+  if (drop) {
+    cart = removeLine(cart, drop.dataset.drop);
+    saveCart(cart);
+    return renderCart();
+  }
+
+  // Stepping down to nothing removes the line, which is what setQuantity does
+  // -- so the x button is a shortcut rather than the only way out.
+  const step = ev.target.closest('[data-cart-step]');
+  if (!step) return;
+  const key = step.dataset.cartStep;
+  const want = (cart.find((l) => l.key === key)?.want ?? 0) + Number(step.dataset.by);
+  cart = setQuantity(cart, key, want, Number(step.dataset.cap));
   saveCart(cart);
   renderCart();
 });
@@ -1363,33 +1404,10 @@ $('cart-clear').addEventListener('click', () => {
   renderCart();
 });
 
-cartPricesEl.addEventListener('change', () => {
-  $('cart-note').textContent = cartPricesEl.checked
-    ? 'The copied list will carry reference figures, labelled as such.'
-    : '';
-});
-
-$('cart-copy').addEventListener('click', async () => {
-  const text = cartMessage(resolveCart(cart, index), {
-    includePrices: cartPricesEl.checked,
-    sources: index?.priceSources ?? [],
-    formatPrice,
-  });
-  if (!text) return;
-
-  const note = $('cart-note');
-  try {
-    await navigator.clipboard.writeText(text);
-    note.textContent = 'Copied. Paste it to the seller.';
-  } catch {
-    // Clipboard access is refused outside a secure context and in some
-    // browsers. Showing the text is still useful; failing silently is not.
-    note.textContent = 'Could not reach the clipboard -- select the text below and copy it.';
-    resultsEl.insertAdjacentHTML('afterbegin',
-      `<textarea class="cart-fallback" rows="10" readonly>${esc(text)}</textarea>`);
-    resultsEl.querySelector('.cart-fallback')?.select();
-  }
-});
+// The box shows what the checkbox does, so the list is redrawn rather than
+// described. The old "Copy list" button and its injected fallback are gone:
+// the box carries its own copy button, and the text was already on screen.
+cartPricesEl.addEventListener('change', renderCart);
 
 /* ------------------------------------------------------------------ *
  * Card preview
