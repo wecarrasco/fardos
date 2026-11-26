@@ -905,14 +905,30 @@ function renderDecklist() {
   // Value of what can actually be supplied, priced per printing. The same
   // allocation the message uses, so the figure and the request agree on which
   // copies are being talked about.
-  const supplied = allocateStock(matches)
-    .map((a) => ({ prices: a.card.prices, quantity: a.quantity }));
+  const allocations = allocateStock(matches);
+  const supplied = allocations.map((a) => ({ prices: a.card.prices, quantity: a.quantity }));
   const value = describeTotals(supplied, index?.priceSources);
+
+  // Regrouped by deck because the discount is the deck's, and `allocateStock`
+  // returns a flat list that can come back to one deck more than once -- a
+  // card spilling into a second deck and a later card spilling back.
+  /** @type {Map<string, {cards: object[], discount: number|null}>} */
+  const byDeck = new Map();
+  for (const a of allocations) {
+    const group = byDeck.get(a.deckId) ?? { cards: [], discount: a.discount };
+    group.cards.push({ prices: a.card.prices, quantity: a.quantity });
+    byDeck.set(a.deckId, group);
+  }
+  const net = describeDiscounted([...byDeck.values()], index?.priceSources);
 
   summaryEl.innerHTML =
     `<b>${summary.foundCopies}</b> of <b>${summary.wantedCopies}</b> copies available ` +
     `across <b>${summary.lines}</b> ${summary.lines === 1 ? 'card' : 'cards'}.` +
-    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '');
+    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '') +
+    // Worded exactly as the cart words it: the same figure answering the same
+    // question should not read as two different claims.
+    (net ? `<div class="price-total net">With each deck's discount ${esc(net)} &mdash; ` +
+           `an estimate: the discount comes off the seller's own price, not these.</div>` : '');
 
   const missing = matches.filter((m) => m.status === 'missing');
   const stocked = matches.filter((m) => m.status !== 'missing');
