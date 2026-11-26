@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardPrice, formatPrice, referenceTotal, describeTotals } from '../web/prices.js';
+import {
+  cardPrice, formatPrice, referenceTotal, describeTotals,
+  discountedTotal, describeDiscounted,
+} from '../web/prices.js';
 import { parseDeckPage, PRICE_VENDORS } from '../src/scrapers/manabox.js';
 import { readFixture, FIXTURES } from './fixture-manifest.js';
 
@@ -192,6 +195,104 @@ test('the DOM fallback yields no prices rather than wrong ones', () => {
   const deck = parseDeckPage(html, FIXTURES.mixed.deckId, ['tcgplayer', 'cardKingdom']);
   assert.ok(deck.cards.length > 0);
   assert.ok(deck.cards.every((c) => Object.keys(c.prices).length === 0));
+});
+
+/* ---------------------------------------------------------------- *
+ * What the deck discounts come to
+ * ---------------------------------------------------------------- */
+
+test('each deck is discounted on its own, not by a blended rate', () => {
+  // The whole reason this cannot be one percentage over the cart: the same
+  // card sits in decks at different tiers, and averaging them is wrong in
+  // both directions.
+  const r = discountedTotal([
+    { cards: [tcg(100)], discount: 35 },
+    { cards: [tcg(100)], discount: 10 },
+  ], USD);
+
+  assert.equal(r.full, 200);
+  assert.equal(r.total, 155);   // 65 + 90, not 200 * 0.775
+  assert.equal(r.saved, 45);
+});
+
+test('the per-deck figures add up to the total', () => {
+  // Each deck's discounted subtotal is on screen beside the total. Rounding
+  // only at the end gives $6.32 and $6.85 under a total of $13.18, and a
+  // reader checking that by hand is right to distrust it.
+  const decks = [
+    { cards: [tcg(10.54)], discount: 40 },   // 6.324 -> 6.32
+    { cards: [tcg(10.54)], discount: 35 },   // 6.851 -> 6.85
+  ];
+  const rows = decks.map((d) => discountedTotal([d], USD).total);
+  assert.deepEqual(rows, [6.32, 6.85]);
+  assert.equal(discountedTotal(decks, USD).total, 13.17);
+  assert.equal(rows[0]! + rows[1]!, discountedTotal(decks, USD).total);
+});
+
+test('a deck with no discount still counts at full price', () => {
+  const r = discountedTotal([
+    { cards: [tcg(50)], discount: null },
+    { cards: [tcg(50)], discount: 50 },
+  ], USD);
+  assert.equal(r.total, 75);
+  assert.equal(r.full, 100);
+});
+
+test('a discount outside 0-100 is ignored rather than applied', () => {
+  // A parser fault must not invent money: 120% off would turn a cart negative.
+  for (const bad of [0, -10, 120, 100, NaN, null, undefined, '35']) {
+    const r = discountedTotal([{ cards: [tcg(40)], discount: bad as any }], USD);
+    assert.equal(r.total, 40, `discount ${String(bad)}`);
+  }
+});
+
+test('quantities are counted before the discount', () => {
+  const r = discountedTotal([{ cards: [tcg(10, 3)], discount: 20 }], USD);
+  assert.equal(r.full, 30);
+  assert.equal(r.total, 24);
+});
+
+test('a card the vendor does not price is reported, not counted as free', () => {
+  const r = discountedTotal([{ cards: [tcg(100), tcg(undefined)], discount: 50 }], USD);
+  assert.equal(r.priced, 1);
+  assert.equal(r.unpriced, 1);
+  assert.equal(r.total, 50);
+});
+
+test('nothing priced by this vendor is no total at all', () => {
+  const r = discountedTotal([{ cards: [tcg(10)], discount: 35 }], EUR);
+  assert.equal(r.priced, 0);
+  assert.equal(r.total, 0);
+});
+
+test('an empty or absent set of groups does not throw', () => {
+  for (const input of [[], null, undefined]) {
+    const r = discountedTotal(input as any, USD);
+    assert.deepEqual([r.total, r.full, r.saved, r.priced], [0, 0, 0, 0]);
+  }
+});
+
+test('the discounted line names every vendor that prices the cart', () => {
+  const groups = [{ cards: [card({ tcgplayer: 100, cardKingdom: 200 })], discount: 25 }];
+  const text = describeDiscounted(groups, [USD, CK])!;
+  // The currency is formatted for the reader's locale -- "$75.00" here,
+  // "USD 75,00" elsewhere -- so the figures are asserted, not the symbol.
+  assert.equal(text, `${formatPrice(75, USD)} at TCGplayer · ${formatPrice(150, CK)} at Card Kingdom`);
+  assert.match(text, /75\D?00 at TCGplayer/);
+  assert.match(text, /150\D?00 at Card Kingdom/);
+});
+
+test('no discount anywhere means no line, rather than the same figure twice', () => {
+  // It sits directly under the reference total. Repeating that number under a
+  // different label would read as a second source confirming it.
+  assert.equal(describeDiscounted([{ cards: [tcg(10)], discount: null }], [USD]), null);
+  assert.equal(describeDiscounted([{ cards: [tcg(10)], discount: 0 }], [USD]), null);
+});
+
+test('no prices at all means no line', () => {
+  assert.equal(describeDiscounted([{ cards: [tcg(undefined)], discount: 35 }], [USD]), null);
+  assert.equal(describeDiscounted([], [USD]), null);
+  assert.equal(describeDiscounted([{ cards: [tcg(10)], discount: 35 }], []), null);
 });
 
 test('cardhoarder is not offered as a vendor', () => {

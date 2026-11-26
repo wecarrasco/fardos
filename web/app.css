@@ -474,6 +474,10 @@ footer a:hover { color: var(--link); }
 .cart-deck .deck-head a { color: var(--link); text-decoration: none; font-weight: 650; }
 .cart-deck .deck-head a:hover { text-decoration: underline; }
 .cart-sub { color: var(--muted); font-size: 12.5px; font-weight: 400; }
+/* The discounted figure is the one someone acts on, so it carries the accent
+   while the reference total it is derived from stays muted beside it. */
+.cart-net { display: block; color: var(--accent); font-weight: 650; }
+.price-total.net { color: var(--accent); }
 
 .cart-row {
   display: grid; grid-template-columns: auto 1fr; gap: 10px;

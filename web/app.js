@@ -4,7 +4,7 @@ import { normalizeCardName } from './normalize.js';
 import { newArrivals, arrivalCutoff, isNewCard } from './arrivals.js';
 import { createPreview } from './preview.js';
 import { betterDealFor, categoryLabel, sortCardTypes } from './cards.js';
-import { cardPrice, formatPrice, describeTotals } from './prices.js';
+import { cardPrice, formatPrice, describeTotals, describeDiscounted } from './prices.js';
 import { parseDecklist, matchDecklist, stockedMessage, allocateStock } from './decklist.js';
 import {
   emptyFilters, isFiltered, facetsFor, applyFilters, pruneFilters, COLOUR_MODES, formatLabel,
@@ -167,11 +167,13 @@ let rerender = () => {};
  * @param {number|string} count shown beside the title
  * @param {string} hint one line under it
  * @param {string} body the text itself; empty means no block at all
+ * @param {string} [extra] markup for another button beside Copy
  */
-const exportBlock = (title, count, hint, body) => (body ? `
+const exportBlock = (title, count, hint, body, extra = '') => (body ? `
   <div class="dl-export">
     <div class="dl-export-head">
       <h2 style="font-size:15px;margin:0">${esc(title)} (${count})</h2>
+      ${extra}
       <button type="button" class="btn secondary" data-copy>Copy</button>
     </div>
     <div class="setinfo">${esc(hint)}</div>
@@ -944,10 +946,43 @@ function renderDecklist() {
 
     ${exportBlock(
       'Not stocked', missing.length,
-      'Copy this back into your deck builder, or try again after an update.',
+      'Copy this back into your deck builder, or watch for them and let the site tell you when they turn up.',
       missing.map((m) => `${m.wanted} ${m.entry.name}`).join('\n'),
+      // Watching is the obvious next move for a card nobody stocks, and it is
+      // the one thing this list is otherwise a dead end for.
+      `<button type="button" class="btn secondary" id="wish-missing">${
+        missing.every((m) => inWishlist(wishlist, m.entry.name))
+          ? 'All watched' : 'Watch these'}</button>`,
     )}`;
 }
+
+/**
+ * Send the cards nobody stocks to the wishlist.
+ *
+ * The list is re-derived from the box rather than kept in a variable: pressing
+ * this is no more work than pressing "Check list", and a remembered copy could
+ * disagree with what is on screen after an index refresh.
+ */
+resultsEl.addEventListener('click', (ev) => {
+  if (!ev.target.closest('#wish-missing') || !index) return;
+
+  const { entries } = parseDecklist(listInput.value);
+  const { matches } = matchDecklist(index, entries);
+  const missing = matches.filter((m) => m.status === 'missing');
+
+  const before = wishlist.length;
+  const today = todayUtc();
+  for (const m of missing) wishlist = addToWishlist(wishlist, m.entry.name, today);
+  saveWishlist(wishlist);
+
+  renderDecklist();     // the button now reads "All watched"
+  updateWishBadge();
+  const added = wishlist.length - before;
+  // Written after the redraw, which rewrites this line with the parse summary.
+  $('list-note').textContent = added
+    ? `${added} ${added === 1 ? 'card' : 'cards'} added to your wishlist.`
+    : 'Already watching all of them.';
+});
 
 /**
  * Copy the list beside the button.
@@ -1370,6 +1405,11 @@ function cartGroup(group) {
   }).join('');
 
   const subtotal = describeTotals(group.supplied, index?.priceSources);
+  // With the discount applied, beside the chip that states it. Null when this
+  // deck has none, so the same figure is not printed twice.
+  const net = describeDiscounted(
+    [{ cards: group.supplied, discount: group.discount }], index?.priceSources);
+
   return `
     <section class="deck cart-deck">
       <div class="deck-head">
@@ -1377,7 +1417,8 @@ function cartGroup(group) {
           <a href="${esc(group.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(group.deckName)}</a>
           ${group.discount ? `<span class="chip off">${group.discount}% OFF</span>` : ''}
         </span>
-        <span class="cart-sub">${subtotal ? esc(subtotal) : ''}</span>
+        <span class="cart-sub">${subtotal ? esc(subtotal) : ''}${
+          net ? `<b class="cart-net">${esc(net)}</b>` : ''}</span>
       </div>
       <div class="cart-rows">${rows}</div>
     </section>`;
@@ -1406,10 +1447,21 @@ function renderCart() {
   emptyEl.hidden = true;
   summaryEl.hidden = false;
   const value = describeTotals(resolved.supplied, index?.priceSources);
+  // Each deck discounted on its own and then summed: the decks in one cart sit
+  // at different tiers, so a single percentage over the whole thing would be
+  // wrong for most of it.
+  const net = describeDiscounted(
+    resolved.groups.map((g) => ({ cards: g.supplied, discount: g.discount })),
+    index?.priceSources);
+
   summaryEl.innerHTML =
     `<b>${resolved.copies}</b> ${resolved.copies === 1 ? 'card' : 'cards'} from ` +
     `<b>${resolved.deckCount}</b> ${resolved.deckCount === 1 ? 'deck' : 'decks'}.` +
-    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '');
+    (value ? `<div class="price-total">Reference value ${esc(value)}. Not the seller's price.</div>` : '') +
+    // Said in the same breath as the figure, because this one is the most
+    // quotable number on the page and the caveat has to travel with it.
+    (net ? `<div class="price-total net">With each deck's discount ${esc(net)} &mdash; ` +
+           `an estimate: the discount comes off the seller's own price, not these.</div>` : '');
 
   // Cards that have left the catalogue are listed rather than quietly dropped:
   // a list that shrinks by itself between visits is a list nobody can trust.
