@@ -178,10 +178,12 @@ export function cartMessage(resolved, opts = {}) {
   const { includePrices = false, sources = [], formatPrice } = opts;
   if (!resolved?.groups?.length) return '';
 
-  const lines = ['Cards I\'d like:', ''];
+  const lines = [];
 
   for (const g of resolved.groups) {
-    lines.push(`${g.deckName}${g.discount ? ` (${g.discount}% off)` : ''}`);
+    // Name then link, as the decklist message does it: the seller opens the deck
+    // rather than hunting for it by name.
+    lines.push(g.deckName, g.deckUrl);
 
     for (const item of g.items) {
       const c = item.card;
@@ -205,15 +207,14 @@ export function cartMessage(resolved, opts = {}) {
     lines.push('');
   }
 
-  const { copies, deckCount } = resolved;
-  lines.push(`${copies} ${copies === 1 ? 'card' : 'cards'} from ${deckCount} ${deckCount === 1 ? 'deck' : 'decks'}.`);
-
   if (includePrices) {
     // Said plainly inside the message itself, because once it is pasted into a
     // chat it travels without any of the page's context.
     lines.push('(Figures are market reference prices, not your prices.)');
   }
-  return lines.join('\n');
+  // Each group leaves a blank separator behind it, which the footer used to
+  // absorb; without this the message would end on an empty line.
+  return lines.join('\n').trimEnd();
 }
 
 /* ------------------------------------------------------------------ *

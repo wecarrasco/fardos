@@ -176,13 +176,23 @@ const twoDeckIndex = () => index([
 
 test('the message groups by deck, the way the stock is organised', () => {
   const text = cartMessage(resolveCart(twoDeckCart(), twoDeckIndex()));
-  assert.match(text, /Deck a \(20% off\)/);
   assert.match(text, /2x Sol Ring/);
-  assert.match(text, /Deck b/);
   assert.match(text, /1x Lightning Bolt \(M11\) #149/);
-  assert.match(text, /3 cards from 2 decks/);
-  // The deck heading comes before its own cards.
+  // Name, then the link to open it, then the cards.
+  assert.match(text, /^Deck a\nhttps:\/\/manabox\.app\/decks\/a\n/);
+  assert.match(text, /\nDeck b\nhttps:\/\/manabox\.app\/decks\/b\n/);
   assert.ok(text.indexOf('Deck a') < text.indexOf('2x Sol Ring'));
+  // No greeting, no footer, no stray edges.
+  assert.equal(text, text.trim());
+  assert.ok(!/cards from/.test(text));
+});
+
+test('the discount is left off the message', () => {
+  // The seller sets the discount; quoting it back reads as dictating terms, and
+  // the deck page now linked beside the name states the current one anyway.
+  const text = cartMessage(resolveCart(twoDeckCart(), twoDeckIndex()));
+  assert.ok(!text.includes('20%'));
+  assert.ok(!text.includes('off'));
 });
 
 test('the message carries no prices by default', () => {
