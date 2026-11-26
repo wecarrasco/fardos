@@ -23,6 +23,10 @@
               aria-selected="false" aria-controls="pane-browse" tabindex="-1">Browse</button>
       <button id="tab-list" class="tab" role="tab"
               aria-selected="false" aria-controls="pane-list" tabindex="-1">Decklist</button>
+      <button id="tab-wish" class="tab" role="tab"
+              aria-selected="false" aria-controls="pane-wish" tabindex="-1">
+        Wishlist <span id="wish-count" class="count" hidden></span>
+      </button>
       <button id="tab-cart" class="tab" role="tab"
               aria-selected="false" aria-controls="pane-cart" tabindex="-1">
         Cart <span id="cart-count" class="count" hidden></span>
@@ -50,6 +54,17 @@
         <button id="check-list" type="button" class="btn">Check list</button>
         <button id="clear-list" type="button" class="btn secondary">Clear</button>
         <span id="list-note" class="status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div id="pane-wish" role="tabpanel" aria-labelledby="tab-wish" hidden>
+      <label for="wish-add" class="visually-hidden">Cards to watch for</label>
+      <textarea id="wish-add" rows="3" spellcheck="false"
+        placeholder="Cards to watch for, one per line. They do not have to be in stock:&#10;&#10;Ragavan, Nimble Pilferer&#10;Sol Ring"></textarea>
+      <div class="listbar">
+        <button id="wish-save" type="button" class="btn">Add to wishlist</button>
+        <button id="wish-clear" type="button" class="btn secondary">Empty wishlist</button>
+        <span id="wish-note" class="status" role="status" aria-live="polite"></span>
       </div>
     </div>
 

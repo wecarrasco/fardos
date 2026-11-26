@@ -304,13 +304,17 @@ footer a:hover { color: var(--link); }
 .cp-off { color: var(--ok); font-size: 11px; font-weight: 700; }
 
 /* ---- Decklist ---- */
-#decklist {
+/* The wishlist box takes the same treatment: both are places you paste a list
+   of card names, and a second textarea styled differently would read as a
+   different kind of field. It is shorter because it is emptied after each add. */
+#decklist, #wish-add {
   width: 100%; min-height: 130px; resize: vertical; padding: 10px 12px;
   font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--text); background: var(--panel-2);
   border: 1px solid var(--line); border-radius: 10px;
 }
-#decklist:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+#wish-add { min-height: 76px; }
+#decklist:focus, #wish-add:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .listbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .listbar .status { margin-top: 0; }
 
@@ -489,6 +493,25 @@ footer a:hover { color: var(--link); }
 }
 .cart-x:hover { color: var(--bad); }
 .cart-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* The star sits beside the cart control in the same cell. Unfilled means "not
+   watched", so the two states differ in shape as well as colour. */
+.wish-star {
+  appearance: none; cursor: pointer; font: inherit; font-size: 15px; line-height: 1;
+  background: none; border: 0; color: var(--muted); padding: 0 2px; margin-left: 4px;
+}
+.wish-star:hover, .wish-star.is-on { color: var(--accent); }
+.wish-star:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* A wishlist row is a decklist row spending the quantity column on a remove
+   button instead: a line is one card, so there is no quantity to show. */
+.wish-row { padding: 10px 14px; border-top: 1px solid var(--line); }
+.wish-row .cart-x { margin-right: 4px; }
+/* Waiting is not a failure: a card the seller has never stocked is the normal
+   case here, not a miss, so it keeps the plain name and a neutral edge rather
+   than the decklist's red. */
+.wish-row.miss .dl-name { color: var(--text); }
+.wish-row.miss .dl-mark { background: var(--line); }
 
 .cart-warn { margin-top: 3px; font-size: 12px; color: var(--accent); }
 .cart-row.is-gone .cart-name { color: var(--muted); text-decoration: line-through; }

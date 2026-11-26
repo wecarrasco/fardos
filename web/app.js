@@ -14,6 +14,10 @@ import {
   addToCart, cartCount, cartMessage, loadCart, removeLine, resolveCart, saveCart,
   setQuantity, wantedFrom,
 } from './cart.js';
+import {
+  addToWishlist, inWishlist, loadWishlist, removeWish, resolveWishlist, saveWishlist,
+  wishKey,
+} from './wishlist.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -96,7 +100,15 @@ const fmtDate = (iso) => {
   const d = new Date(iso);
   if (Number.isNaN(+d)) return 'unknown';
   const days = Math.floor((Date.now() - d) / 86400000);
-  const abs = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  // A bare YYYY-MM-DD parses as UTC midnight, so west of Greenwich
+  // toLocaleDateString would print the day before -- "today (Nov 25)" on the
+  // 26th. Those dates are cut from the build's UTC timestamp, so the calendar
+  // label is read back in UTC. Full timestamps keep the reader's own zone.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const abs = d.toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    ...(dateOnly ? { timeZone: 'UTC' } : {}),
+  });
   if (days <= 0) return `today (${abs})`;
   if (days === 1) return `yesterday (${abs})`;
   return `${days} days ago (${abs})`;
@@ -116,6 +128,18 @@ let sort = DEFAULT_SORT;
 
 /** Cards to ask the seller for. Identity and quantity only; see cart.js. */
 let cart = loadCart();
+
+/** Cards to watch for, in or out of stock; see wishlist.js. */
+let wishlist = loadWishlist();
+
+/**
+ * Today, as the index writes dates.
+ *
+ * UTC rather than local, because `firstSeen` is cut from the build's UTC
+ * timestamp. Comparing a local date against those would make a card look like
+ * an arrival, or not, depending on which side of midnight the reader is.
+ */
+const todayUtc = () => new Date().toISOString().slice(0, 10);
 
 /**
  * The vendor that price sorting and the price ceiling read. The first one
@@ -348,8 +372,31 @@ function cardRow(c, deck, opts = {}) {
         ${priceNote(c)}
         ${cheaperElsewhere(c, deck)}
       </td>
-      <td class="cartcell">${cartControl(c, deck.deckId, ref)}</td>
+      <td class="cartcell">${rowControls(c, deck.deckId, ref)}</td>
     </tr>`;
+}
+
+/**
+ * Both of a row's controls, so the one cell can be redrawn in one go after
+ * either is pressed.
+ */
+const rowControls = (card, deckId, ref) =>
+  cartControl(card, deckId, ref) + wishControl(card, ref);
+
+/**
+ * Watch-this-card toggle.
+ *
+ * Beside the cart button rather than inside the card panel because the two are
+ * the same decision made differently: the cart is "I want this copy, from this
+ * deck", the star is "tell me about this card wherever it turns up". A card not
+ * in stock has no row at all, which is what the Wishlist tab's box is for.
+ */
+function wishControl(card, ref) {
+  const on = inWishlist(wishlist, card.name);
+  return `<button type="button" class="wish-star${on ? ' is-on' : ''}" data-wish="${ref}"
+                  aria-pressed="${on}"
+                  title="${on ? esc(card.name) + ' is in your wishlist' : 'Watch for ' + esc(card.name)}"
+          >${on ? '&#9733;' : '&#9734;'}</button>`;
 }
 
 /**
@@ -522,6 +569,7 @@ const TABS = {
   new:    { tab: 'tab-new',    pane: 'pane-new' },
   browse: { tab: 'tab-browse', pane: 'pane-browse' },
   list:   { tab: 'tab-list',   pane: 'pane-list' },
+  wish:   { tab: 'tab-wish',   pane: 'pane-wish' },
   cart:   { tab: 'tab-cart',   pane: 'pane-cart' },
 };
 
@@ -593,10 +641,12 @@ function showTab(which) {
   url.searchParams.delete('new');
   url.searchParams.delete('list');
   url.searchParams.delete('cart');
+  url.searchParams.delete('wish');
   if (which !== 'browse') url.searchParams.delete('deck');
   if (which === 'new') url.searchParams.set('new', windowSelect.value);
   if (which === 'list') url.searchParams.set('list', '1');
   if (which === 'cart') url.searchParams.set('cart', '1');
+  if (which === 'wish') url.searchParams.set('wish', '1');
   history.replaceState(null, '', url);
 
   // The NEW badge in search results always means "the last 7 days", whatever
@@ -607,6 +657,7 @@ function showTab(which) {
   else if (which === 'new') renderArrivals();
   else if (which === 'browse') renderBrowse();
   else if (which === 'cart') renderCart();
+  else if (which === 'wish') renderWishlist();
   else { renderDecklist(); listInput.focus(); }
 }
 
@@ -985,10 +1036,12 @@ async function loadIndex() {
     } catch { /* private mode */ }
 
     updateCartBadge();
+    updateWishBadge();
 
     if (params.has('deck')) { browseDeckId = params.get('deck'); showTab('browse'); }
     else if (params.has('browse')) showTab('browse');
     else if (params.has('cart')) showTab('cart');
+    else if (params.has('wish')) showTab('wish');
     else if (params.has('list')) showTab('list');
     else if (params.has('new')) {
       const w = params.get('new');
@@ -1237,20 +1290,37 @@ function updateCartBadge() {
  * them to change one number would lose the reader's place for no reason.
  */
 resultsEl.addEventListener('click', (ev) => {
-  const btn = ev.target.closest('[data-add], [data-step]');
+  const btn = ev.target.closest('[data-add], [data-step], [data-wish]');
   if (!btn) return;
   ev.preventDefault();
 
-  const ref = Number(btn.dataset.add ?? btn.dataset.step);
+  const ref = Number(btn.dataset.add ?? btn.dataset.step ?? btn.dataset.wish);
   const hit = rendered[ref];
   if (!hit) return;
+
+  if (btn.dataset.wish !== undefined) {
+    const name = hit.card.name;
+    wishlist = inWishlist(wishlist, name)
+      ? removeWish(wishlist, wishKey(name))
+      : addToWishlist(wishlist, name, todayUtc());
+    saveWishlist(wishlist);
+    // The cell is read before the swap: replacing outerHTML detaches the
+    // button, and closest() on a detached node finds nothing.
+    const cell = btn.closest('.cartcell');
+    btn.outerHTML = wishControl(hit.card, ref);
+    // The pressed button has just been replaced; focus would otherwise fall to
+    // the document top mid-interaction.
+    cell?.querySelector('[data-wish]')?.focus();
+    updateWishBadge();
+    return;
+  }
 
   cart = addToCart(cart, hit.deckId, hit.card, btn.dataset.step ? Number(btn.dataset.by) : 1);
   saveCart(cart);
 
   const cell = btn.closest('.cartcell');
   if (cell) {
-    cell.innerHTML = cartControl(hit.card, hit.deckId, ref);
+    cell.innerHTML = rowControls(hit.card, hit.deckId, ref);
     // The control the reader was pressing has just been replaced. Put focus on
     // whatever now stands in its place, or the caret falls to the document top
     // mid-interaction.
@@ -1408,6 +1478,136 @@ $('cart-clear').addEventListener('click', () => {
 // described. The old "Copy list" button and its injected fallback are gone:
 // the box carries its own copy button, and the text was already on screen.
 cartPricesEl.addEventListener('change', renderCart);
+
+/* ------------------------------------------------------------------ *
+ * Wishlist
+ * ------------------------------------------------------------------ */
+
+const wishInput = $('wish-add');
+const wishCountEl = $('wish-count');
+
+/**
+ * The badge counts arrivals, not lines.
+ *
+ * A wishlist is a standing list that mostly does not change; a badge reading
+ * its length would sit there permanently and mean nothing. What is worth a
+ * number on the tab is the thing you would want to be told: cards that turned
+ * up since you asked for them.
+ */
+function updateWishBadge() {
+  const n = index ? resolveWishlist(wishlist, index).arrived : 0;
+  wishCountEl.hidden = n === 0;
+  wishCountEl.textContent = String(n);
+  wishCountEl.title = `${n} wishlisted ${n === 1 ? 'card has' : 'cards have'} arrived since you asked`;
+}
+
+/** One wishlist row. */
+function wishRow(row) {
+  const { line, best } = row;
+
+  const where = row.state === 'waiting'
+    ? '<div class="dl-where">Not in stock. You will see it here when it arrives.</div>'
+    : `<div class="dl-where">
+         ${best.quantity}&times; in
+         <a href="${esc(best.deckUrl)}" target="_blank" rel="noopener noreferrer">${esc(best.deckName)}</a>
+         ${row.discount ? `<span class="cp-off">${row.discount}% off</span>` : ''}
+         ${row.sources.length > 1
+           ? `&middot; +${row.sources.length - 1} other ${row.sources.length === 2 ? 'deck' : 'decks'}`
+           : ''}
+       </div>`;
+
+  return `
+    <div class="dl-row wish-row ${row.state === 'arrived' ? 'ok' : row.state === 'stocked' ? 'part' : 'miss'}">
+      <div class="dl-mark"></div>
+      <div>
+        <button type="button" class="cart-x" data-unwish="${esc(line.key)}"
+                aria-label="Stop watching ${esc(line.name)}">&times;</button>
+        <span class="dl-name">${esc(line.name)}</span>
+        ${row.state === 'arrived' ? '<span class="new-badge">ARRIVED</span>' : ''}
+        ${where}
+        ${row.state === 'arrived'
+          ? `<div class="cart-warn">Arrived ${esc(fmtDate(row.arrivedAt))}, after you asked for it.</div>`
+          : ''}
+      </div>
+      <div class="dl-have">${row.state === 'waiting' ? '&mdash;' : `<b>${row.available}</b> available`}</div>
+    </div>`;
+}
+
+function renderWishlist() {
+  if (!index) return;
+  filtersEl.hidden = true;   // the wishlist has its own shape
+
+  const { rows, arrived, stocked, waiting } = resolveWishlist(wishlist, index);
+  $('wish-note').textContent = '';
+  updateWishBadge();
+
+  if (!rows.length) {
+    resultsEl.innerHTML = '';
+    summaryEl.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.className = 'empty';
+    emptyEl.textContent =
+      'Nothing watched yet. Star a card in the results, or type names above — ' +
+      'they do not have to be in stock.';
+    return;
+  }
+
+  emptyEl.hidden = true;
+  summaryEl.hidden = false;
+  const parts = [];
+  if (arrived) parts.push(`<b>${arrived}</b> arrived since you asked`);
+  if (stocked) parts.push(`<b>${stocked}</b> in stock`);
+  if (waiting) parts.push(`<b>${waiting}</b> still waiting`);
+  summaryEl.innerHTML = `${parts.join(' &middot; ')}.`;
+
+  resultsEl.innerHTML = `<section class="deck"><div class="cart-rows">${
+    rows.map(wishRow).join('')}</div></section>`;
+}
+
+/** Reading names out of the box, the way the decklist tab reads a list. */
+$('wish-save').addEventListener('click', () => {
+  const { entries, skipped } = parseDecklist(wishInput.value);
+  if (!entries.length) {
+    $('wish-note').textContent = skipped
+      ? `Nothing usable there — ${skipped} ${skipped === 1 ? 'row' : 'rows'} skipped.`
+      : 'Type a card name first.';
+    return;
+  }
+
+  const before = wishlist.length;
+  const today = todayUtc();
+  // Quantities and printings are dropped on purpose: a wishlist line is a card
+  // name. Pasting a decklist here watches each card once.
+  for (const entry of entries) wishlist = addToWishlist(wishlist, entry.name, today);
+  saveWishlist(wishlist);
+
+  const added = wishlist.length - before;
+  const dupes = entries.length - added;
+  wishInput.value = '';
+  renderWishlist();
+  $('wish-note').textContent =
+    `${added} added` + (dupes > 0 ? `, ${dupes} already there` : '') + '.';
+});
+
+wishInput.addEventListener('keydown', (ev) => {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') $('wish-save').click();
+});
+
+$('wish-clear').addEventListener('click', () => {
+  if (!wishlist.length) return;
+  wishlist = [];
+  saveWishlist(wishlist);
+  renderWishlist();
+});
+
+/** Dropping a line from inside the wishlist redraws it: the list just changed. */
+resultsEl.addEventListener('click', (ev) => {
+  const drop = ev.target.closest('[data-unwish]');
+  if (!drop) return;
+  wishlist = removeWish(wishlist, drop.dataset.unwish);
+  saveWishlist(wishlist);
+  renderWishlist();
+});
 
 /* ------------------------------------------------------------------ *
  * Card preview
