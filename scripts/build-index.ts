@@ -24,6 +24,9 @@ const argv = process.argv.slice(2);
 const outFlag = argv.indexOf('--out');
 const outDir = resolve(root, outFlag !== -1 ? argv[outFlag + 1]! : 'dist-site');
 
+/** Kept at the repo root beside legality.json; see publishSite(). */
+const CARD_NAMES_FILE = 'card-names.json';
+
 /**
  * Republish the site around the index that is already published, without
  * scraping anything.
@@ -129,6 +132,24 @@ function toIndexDeck(
   };
 }
 
+/**
+ * Copy the static frontend alongside the data, so the output directory is the
+ * complete site ready to publish.
+ *
+ * `card-names.json` rides along from the repo root rather than living in
+ * `web/`: it is generated data kept beside `legality.json`, not a hand-written
+ * part of the site. The wishlist box fetches it on the first keystroke, so a
+ * build that forgot it would leave that box with no suggestions and no way to
+ * catch a typo -- which is why both build paths go through here.
+ */
+function publishSite(out: string): void {
+  cpSync(resolve(root, 'web'), out, { recursive: true });
+
+  const names = resolve(root, CARD_NAMES_FILE);
+  if (existsSync(names)) cpSync(names, resolve(out, CARD_NAMES_FILE));
+  else log.warn('card-names.json is missing; the wishlist box will have no suggestions');
+}
+
 /** Read whatever was published last time, or null on a first build. */
 function readPrevious(previousPath: string): PreviousIndex | null {
   if (!existsSync(previousPath)) return null;
@@ -153,7 +174,7 @@ if (noScrape) {
 
   // The data is left exactly as published; only the site around it is refreshed.
   mkdirSync(outDir, { recursive: true });
-  cpSync(resolve(root, 'web'), outDir, { recursive: true });
+  publishSite(outDir);
 
   const kept = JSON.parse(readFileSync(existing, 'utf8')) as { generatedAt?: string; stats?: unknown };
   log.info('site rebuilt around the published index; nothing was scraped', {
@@ -246,9 +267,7 @@ const index = {
   decks,
 };
 
-// Copy the static frontend alongside the data so the output directory is the
-// complete site, ready to publish.
-cpSync(resolve(root, 'web'), outDir, { recursive: true });
+publishSite(outDir);
 writeFileSync(previousPath, JSON.stringify(index));
 
 const sizeKb = Math.round(Buffer.byteLength(JSON.stringify(index)) / 1024);

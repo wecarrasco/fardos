@@ -15,7 +15,8 @@
     "scrape:deck": "tsx src/cli/scrape-deck.ts",
     "fixtures:update": "tsx scripts/update-fixtures.ts",
     "decks:update": "tsx scripts/update-decks.ts",
-    "legality:update": "tsx scripts/update-legality.ts"
+    "legality:update": "tsx scripts/update-legality.ts",
+    "names:update": "tsx scripts/update-card-names.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

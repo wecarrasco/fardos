@@ -18,6 +18,7 @@ import {
   addToWishlist, catalogueName, inWishlist, loadWishlist, removeWish, resolveWishlist,
   saveWishlist, wishKey,
 } from './wishlist.js';
+import { loadCardNames, suggestNames, closestName } from './cardnames.js';
 
 const $ = (id) => document.getElementById(id);
 const qInput = $('q');
@@ -1633,6 +1634,37 @@ function renderWishlist() {
 }
 
 /**
+ * Every Magic card name, once the box is first used. Empty until then, and
+ * empty again if the download fails, in which case the box still works --
+ * a name can always be typed in full.
+ */
+let cardNames = [];
+
+/** Normalised names the seller has, so suggestions can float them. */
+const stockedNames = () =>
+  new Set((index?.decks ?? []).flatMap((d) => d.cards.map((c) => wishKey(c.name))));
+
+/** Redraw the dropdown for whatever is in the box right now. */
+function drawWishSuggestions() {
+  $('wish-suggestions').innerHTML =
+    suggestNames(cardNames, wishInput.value, { limit: 10, stocked: stockedNames() })
+      .map((n) => `<option value="${esc(n)}">`).join('');
+}
+
+/**
+ * The list is 240 KB, so it is fetched on the first keystroke rather than on
+ * page load: nobody who never opens this tab pays for it. The dropdown is
+ * redrawn when it lands, because by then several more letters have been typed.
+ */
+wishInput.addEventListener('input', async () => {
+  if (!cardNames.length) {
+    cardNames = await loadCardNames();
+    if (!cardNames.length) return;      // offline, or the file is not published
+  }
+  drawWishSuggestions();
+});
+
+/**
  * Add whatever is typed in the box.
  *
  * Run through `parseDecklist` rather than taken raw, so a name pasted with its
@@ -1647,10 +1679,27 @@ function addTypedWish() {
     return;
   }
 
+  const typed = entries[0].name;
+  // A near miss is offered, never applied: swapping in a neighbouring card
+  // silently is worse than showing the typo, because the typo is visible.
+  const meant = entries.length === 1 ? closestName(cardNames, typed) : null;
+  if (meant && !inWishlist(wishlist, typed)) {
+    $('wish-note').innerHTML =
+      `No card is called "${esc(typed)}". Did you mean ` +
+      `<button type="button" class="linky" id="wish-didyoumean">${esc(meant)}</button>? ` +
+      `<button type="button" class="linky" id="wish-anyway">Add it as typed</button>`;
+    return;
+  }
+
+  commitWish(entries);
+}
+
+/** @param {{name: string}[]} entries */
+function commitWish(entries) {
   const before = wishlist.length;
   const today = todayUtc();
-  // Stored under the catalogue's own spelling when it has one, so a list typed
-  // in lower case still reads like the cards do.
+  // Stored under the catalogue's own spelling when the seller has it, so a
+  // name typed in lower case still reads like the cards do.
   const name = catalogueName(index, entries[0].name) ?? entries[0].name;
   for (const entry of entries) {
     wishlist = addToWishlist(wishlist, catalogueName(index, entry.name) ?? entry.name, today);
@@ -1662,28 +1711,22 @@ function addTypedWish() {
   renderWishlist();
 
   // Named rather than counted, because one is added at a time and the reader
-  // needs to see their typing landed on the card they meant. A name nothing
-  // matches is still added -- that is what this list is for -- but it is said
-  // out loud, since a half-typed name looks exactly like a card nobody has.
+  // needs to see their typing landed on the card they meant.
   $('wish-note').textContent =
     !added ? `${name} is already on the list.` :
-    entries.length > 1 ? `${added} added.` :
-    catalogueName(index, name) ? `${name} added.` :
-    `Nobody stocks "${name}" — watching it as typed.`;
+    entries.length > 1 ? `${added} added.` : `${name} added.`;
   wishInput.focus();
 }
 
-$('wish-save').addEventListener('click', addTypedWish);
-
-/**
- * Suggestions come from the seller's catalogue, which is the half of the job
- * that can be helped with. A name nothing matches is still added as typed --
- * holding cards nobody stocks is the whole point of this list.
- */
-wishInput.addEventListener('input', () => {
-  $('wish-suggestions').innerHTML = suggest(index, wishInput.value, 10)
-    .map((n) => `<option value="${esc(n)}">`).join('');
+/** Both answers to "did you mean"; delegated, since the note is rewritten. */
+$('wish-note').addEventListener('click', (ev) => {
+  const pick = ev.target.closest('#wish-didyoumean, #wish-anyway');
+  if (!pick) return;
+  if (pick.id === 'wish-didyoumean') wishInput.value = pick.textContent;
+  commitWish(parseDecklist(wishInput.value).entries);
 });
+
+$('wish-save').addEventListener('click', addTypedWish);
 
 wishInput.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter') { ev.preventDefault(); addTypedWish(); }
