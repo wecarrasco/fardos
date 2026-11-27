@@ -58,11 +58,14 @@
     </div>
 
     <div id="pane-wish" role="tabpanel" aria-labelledby="tab-wish" hidden>
-      <label for="wish-add" class="visually-hidden">Cards to watch for</label>
-      <textarea id="wish-add" rows="3" spellcheck="false"
-        placeholder="Cards to watch for, one per line. They do not have to be in stock:&#10;&#10;Ragavan, Nimble Pilferer&#10;Sol Ring"></textarea>
+      <div class="searchbar">
+        <label for="wish-q" class="visually-hidden">Card to watch for</label>
+        <input id="wish-q" type="search" autocomplete="off" spellcheck="false"
+               list="wish-suggestions" placeholder="Card name &mdash; add it even if nobody stocks it">
+        <datalist id="wish-suggestions"></datalist>
+      </div>
       <div class="listbar">
-        <button id="wish-save" type="button" class="btn">Add to wishlist</button>
+        <button id="wish-save" type="button" class="btn">Add</button>
         <button id="wish-clear" type="button" class="btn secondary">Empty wishlist</button>
         <span id="wish-note" class="status" role="status" aria-live="polite"></span>
       </div>

@@ -83,6 +83,31 @@ export function addToWishlist(lines, name, today) {
 /** @param {WishLine[]} lines */
 export const removeWish = (lines, key) => (lines ?? []).filter((l) => l.key !== key);
 
+/**
+ * The catalogue's own spelling of a name, or null when it has none.
+ *
+ * Only an exact match after normalising counts. "sol ring" becomes "Sol Ring"
+ * so the list reads like the cards do, but "sol r" stays "sol r" rather than
+ * being promoted to the nearest thing the seller happens to stock -- a
+ * wishlist that quietly swaps in a different card is worse than one showing a
+ * typo, because the typo is visible and a wrong card is not.
+ *
+ * @param {object} index
+ * @param {string} name
+ * @returns {string|null}
+ */
+export function catalogueName(index, name) {
+  const key = wishKey(name);
+  if (!key) return null;
+
+  for (const deck of index?.decks ?? []) {
+    for (const card of deck.cards) {
+      if (wishKey(card.name) === key) return card.name;
+    }
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ *
  * Resolving against the current index
  * ------------------------------------------------------------------ */

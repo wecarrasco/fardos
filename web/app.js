@@ -15,8 +15,8 @@ import {
   setQuantity, wantedFrom,
 } from './cart.js';
 import {
-  addToWishlist, inWishlist, loadWishlist, removeWish, resolveWishlist, saveWishlist,
-  wishKey,
+  addToWishlist, catalogueName, inWishlist, loadWishlist, removeWish, resolveWishlist,
+  saveWishlist, wishKey,
 } from './wishlist.js';
 
 const $ = (id) => document.getElementById(id);
@@ -659,7 +659,7 @@ function showTab(which) {
   else if (which === 'new') renderArrivals();
   else if (which === 'browse') renderBrowse();
   else if (which === 'cart') renderCart();
-  else if (which === 'wish') renderWishlist();
+  else if (which === 'wish') { renderWishlist(); wishInput.focus(); }
   else { renderDecklist(); listInput.focus(); }
 }
 
@@ -1551,7 +1551,7 @@ cartPricesEl.addEventListener('change', renderCart);
  * Wishlist
  * ------------------------------------------------------------------ */
 
-const wishInput = $('wish-add');
+const wishInput = $('wish-q');
 const wishCountEl = $('wish-count');
 
 /**
@@ -1615,8 +1615,8 @@ function renderWishlist() {
     emptyEl.hidden = false;
     emptyEl.className = 'empty';
     emptyEl.textContent =
-      'Nothing watched yet. Star a card in the results, or type names above — ' +
-      'they do not have to be in stock.';
+      'Nothing watched yet. Search for a card above and press Enter, or star one ' +
+      'in the results. It does not have to be in stock.';
     return;
   }
 
@@ -1632,33 +1632,61 @@ function renderWishlist() {
     rows.map(wishRow).join('')}</div></section>`;
 }
 
-/** Reading names out of the box, the way the decklist tab reads a list. */
-$('wish-save').addEventListener('click', () => {
-  const { entries, skipped } = parseDecklist(wishInput.value);
+/**
+ * Add whatever is typed in the box.
+ *
+ * Run through `parseDecklist` rather than taken raw, so a name pasted with its
+ * quantity or set still in front of it -- "4 Sol Ring", "1 Sol Ring (SLD) 2467"
+ * -- is understood instead of being watched under that whole string. A
+ * wishlist line is the card name; the rest is dropped on purpose.
+ */
+function addTypedWish() {
+  const { entries } = parseDecklist(wishInput.value);
   if (!entries.length) {
-    $('wish-note').textContent = skipped
-      ? `Nothing usable there — ${skipped} ${skipped === 1 ? 'row' : 'rows'} skipped.`
-      : 'Type a card name first.';
+    $('wish-note').textContent = 'Type a card name first.';
     return;
   }
 
   const before = wishlist.length;
   const today = todayUtc();
-  // Quantities and printings are dropped on purpose: a wishlist line is a card
-  // name. Pasting a decklist here watches each card once.
-  for (const entry of entries) wishlist = addToWishlist(wishlist, entry.name, today);
+  // Stored under the catalogue's own spelling when it has one, so a list typed
+  // in lower case still reads like the cards do.
+  const name = catalogueName(index, entries[0].name) ?? entries[0].name;
+  for (const entry of entries) {
+    wishlist = addToWishlist(wishlist, catalogueName(index, entry.name) ?? entry.name, today);
+  }
   saveWishlist(wishlist);
 
   const added = wishlist.length - before;
-  const dupes = entries.length - added;
   wishInput.value = '';
   renderWishlist();
+
+  // Named rather than counted, because one is added at a time and the reader
+  // needs to see their typing landed on the card they meant. A name nothing
+  // matches is still added -- that is what this list is for -- but it is said
+  // out loud, since a half-typed name looks exactly like a card nobody has.
   $('wish-note').textContent =
-    `${added} added` + (dupes > 0 ? `, ${dupes} already there` : '') + '.';
+    !added ? `${name} is already on the list.` :
+    entries.length > 1 ? `${added} added.` :
+    catalogueName(index, name) ? `${name} added.` :
+    `Nobody stocks "${name}" — watching it as typed.`;
+  wishInput.focus();
+}
+
+$('wish-save').addEventListener('click', addTypedWish);
+
+/**
+ * Suggestions come from the seller's catalogue, which is the half of the job
+ * that can be helped with. A name nothing matches is still added as typed --
+ * holding cards nobody stocks is the whole point of this list.
+ */
+wishInput.addEventListener('input', () => {
+  $('wish-suggestions').innerHTML = suggest(index, wishInput.value, 10)
+    .map((n) => `<option value="${esc(n)}">`).join('');
 });
 
 wishInput.addEventListener('keydown', (ev) => {
-  if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') $('wish-save').click();
+  if (ev.key === 'Enter') { ev.preventDefault(); addTypedWish(); }
 });
 
 $('wish-clear').addEventListener('click', () => {

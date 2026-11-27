@@ -304,17 +304,13 @@ footer a:hover { color: var(--link); }
 .cp-off { color: var(--ok); font-size: 11px; font-weight: 700; }
 
 /* ---- Decklist ---- */
-/* The wishlist box takes the same treatment: both are places you paste a list
-   of card names, and a second textarea styled differently would read as a
-   different kind of field. It is shorter because it is emptied after each add. */
-#decklist, #wish-add {
+#decklist {
   width: 100%; min-height: 130px; resize: vertical; padding: 10px 12px;
   font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--text); background: var(--panel-2);
   border: 1px solid var(--line); border-radius: 10px;
 }
-#wish-add { min-height: 76px; }
-#decklist:focus, #wish-add:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+#decklist:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .listbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .listbar .status { margin-top: 0; }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addToWishlist, emptyWishlist, inWishlist, loadWishlist, removeWish,
+  addToWishlist, catalogueName, emptyWishlist, inWishlist, loadWishlist, removeWish,
   resolveWishlist, saveWishlist, wishKey,
 } from '../web/wishlist.js';
 
@@ -58,6 +58,30 @@ test('a line can be removed by its key', () => {
   const w = addToWishlist(emptyWishlist(), 'Sol Ring', '2026-11-01');
   assert.deepEqual(removeWish(w, wishKey('Sol Ring')), []);
   assert.equal(removeWish(w, 'nothing').length, 1);
+});
+
+/* ---------------------------------------------------------------- *
+ * The catalogue's own spelling
+ * ---------------------------------------------------------------- */
+
+test('a name typed in any case is stored as the catalogue writes it', () => {
+  const idx = index([deck('a', [card('Ragavan, Nimble Pilferer')])]);
+  assert.equal(catalogueName(idx, 'ragavan, nimble pilferer'), 'Ragavan, Nimble Pilferer');
+  assert.equal(catalogueName(idx, '  RAGAVAN, NIMBLE PILFERER  '), 'Ragavan, Nimble Pilferer');
+});
+
+test('a half-typed name is not promoted to the nearest card', () => {
+  // A wishlist that quietly swaps in a different card is worse than one
+  // showing a typo: the typo is visible and the wrong card is not.
+  const idx = index([deck('a', [card('Sol Ring')])]);
+  assert.equal(catalogueName(idx, 'sol r'), null);
+  assert.equal(catalogueName(idx, 'Sol Ringer'), null);
+});
+
+test('a card nobody stocks has no catalogue spelling', () => {
+  assert.equal(catalogueName(index([deck('a', [card('Sol Ring')])]), 'Black Lotus'), null);
+  assert.equal(catalogueName(null as any, 'Sol Ring'), null);
+  assert.equal(catalogueName(index([]), ''), null);
 });
 
 /* ---------------------------------------------------------------- *
